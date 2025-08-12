@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aup Grab Booking System</title>
+  <link rel="stylesheet" href="info-modal.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #2d5016 0%, #4a7c59 50%, #6b8e23 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 800px;
+      width: 100%;
+      background: white;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      animation: slideUp 0.8s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #4a7c59, #2d5016);
+      color: white;
+      padding: 40px 30px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      animation: rotate 20s linear infinite;
+    }
+    
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .booking-options {
+      padding: 50px 30px;
+      background: white;
+    }
+    
+    .options-title {
+      text-align: center;
+      font-size: 2rem;
+      color: #2d5016;
+      margin-bottom: 40px;
+      font-weight: 600;
+    }
+    
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 30px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    
+    .option-card {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 15px;
+      padding: 30px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 3px solid transparent;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .option-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      transition: left 0.5s;
+    }
+    
+    .option-card:hover::before {
+      left: 100%;
+    }
+    
+    .option-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+      border-color: #4a7c59;
+    }
+    
+    .option-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      display: block;
+      transition: transform 0.3s ease;
+    }
+    
+    .option-card:hover .option-icon {
+      transform: scale(1.1);
+    }
+    
+    .parcel-card {
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    }
+    
+    .parcel-card:hover {
+      border-color: #2196f3;
+    }
+    
+    .food-card {
+      background: linear-gradient(135deg, #fff3e0 0%, #ffcc02 100%);
+    }
+    
+    .food-card:hover {
+      border-color: #ff9800;
+    }
+    
+    .laundry-card {
+      background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+    }
+    
+    .laundry-card:hover {
+      border-color: #9c27b0;
+    }
+    
+    .option-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #2d5016;
+      margin-bottom: 10px;
+    }
+    
+    .option-description {
+      color: #666;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    
+    .footer {
+      background: #f8f9fa;
+      padding: 30px;
+      text-align: center;
+      border-top: 1px solid #e9ecef;
+    }
+    
+    .footer p {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 15px;
+    }
+    
+    .contact-info {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      flex-wrap: wrap;
+    }
+    
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #4a7c59;
+      font-weight: 500;
+    }
+    
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+    
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+      .container {
+        margin: 10px;
+        border-radius: 15px;
+      }
+      
+      .header {
+        padding: 30px 20px;
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+      
+      .booking-options {
+        padding: 30px 20px;
+      }
+      
+      .options-title {
+        font-size: 1.5rem;
+        margin-bottom: 30px;
+      }
+      
+      .options-grid {
+        gap: 20px;
+      }
+      
+      .option-card {
+        padding: 25px 15px;
+      }
+      
+      .option-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+      }
+      
+      .option-title {
+        font-size: 1.3rem;
+      }
+      
+      .contact-info {
+        flex-direction: column;
+        gap: 15px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      body {
+        padding: 10px;
+      }
+      
+      .header h1 {
+        font-size: 1.8rem;
+      }
+      
+      .header p {
+        font-size: 1rem;
+      }
+      
+      .options-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    /* Info button */
+    .info-btn {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      background: rgba(0,0,0,0.1);
+      color: #111;
+      border: none;
+      padding: 10px 12px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s;
+      line-height: 1;
+    }
+    .info-btn:hover { background: rgba(0,0,0,0.15); }
+    /* Info modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index: 2000; }
+    .modal { background:#fff; width: min(720px, 92vw); max-height: 85vh; overflow:auto; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.35); }
+    .modal-header { padding:16px 20px; border-bottom:1px solid #eee; display:flex; align-items:center; justify-content:space-between; }
+    .modal-header h3 { margin:0; font-size: 1.2rem; }
+    .modal-body { padding: 16px 20px; color:#333; }
+    .modal-body h4 { margin:16px 0 8px; }
+    .modal-body ul { padding-left: 18px; margin: 8px 0; }
+    .close-btn { background:#eee; border:none; border-radius:8px; padding:6px 10px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <button class="info-btn" onclick="openInfo()" aria-label="How to use">i</button>
+  <div class="container">
+    <!-- Header Section -->
+    <div class="header">
+      <h1>Aup Grab Booking</h1>
+      <p>Choose your service and get connected with our reliable riders</p>
+    </div>
+    
+    <!-- Booking Options -->
+    <div class="booking-options">
+      <h2 class="options-title">Select Your Service</h2>
+      
+      <div class="options-grid">
+        <!-- Parcel Option -->
+        <div class="option-card parcel-card pulse" onclick="navigateToBooking('parcel')">
+          <div class="option-icon parcel-icon">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+              <path d="m3.3 7 8.7 5 8.7-5"/>
+              <path d="M12 22V12"/>
+            </svg>
+          </div>
+          <h3 class="option-title">Parcel</h3>
+          <p class="option-description">
+            Package delivery and pickup services. Fast and secure delivery to your destination.
+          </p>
+        </div>
+        
+        <!-- Food Option -->
+        <div class="option-card food-card pulse" onclick="navigateToBooking('food')">
+          <div class="option-icon food-icon">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+              <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+              <line x1="6" y1="1" x2="6" y2="4"/>
+              <line x1="10" y1="1" x2="10" y2="4"/>
+              <line x1="14" y1="1" x2="14" y2="4"/>
+            </svg>
+          </div>
+          <h3 class="option-title">Food</h3>
+          <p class="option-description">
+            Food delivery from your favorite restaurants. Hot and fresh meals delivered to you.
+          </p>
+        </div>
+        
+        <!-- Laundry Option -->
+        <div class="option-card laundry-card pulse" onclick="navigateToBooking('laundry')">
+          <div class="option-icon laundry-icon">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5Z"/>
+              <path d="M12 5L8 21l4-7 4 7-4-16"/>
+              <path d="M2 21c20 0 20-8 20-8"/>
+            </svg>
+          </div>
+          <h3 class="option-title">Laundry</h3>
+          <p class="option-description">
+            Laundry pickup and delivery service. Clean clothes delivered back to you.
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+      <p>Available daily for your convenience</p>
+      <div class="contact-info">
+        <div class="contact-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 1 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 1 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+          <span>Support: 0992-278-8477</span>
+        </div>
+        <div class="contact-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12,6 12,12 16,14"/>
+          </svg>
+          <span>Daily Service</span>
+        </div>
+        <div class="contact-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/>
+          </svg>
+          <span>Fast Delivery</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    function navigateToBooking(service) {
+      // Add a smooth transition effect
+      const card = event.currentTarget;
+      card.style.transform = 'scale(0.95)';
+      card.style.transition = 'transform 0.2s ease';
+      
+      setTimeout(() => {
+        // Navigate to the appropriate booking page
+        window.location.href = `${service}.html`;
+      }, 200);
+    }
+    
+    // Add some interactive effects
+    document.addEventListener('DOMContentLoaded', function() {
+      const cards = document.querySelectorAll('.option-card');
+      
+      cards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+          this.style.transform = 'translateY(-10px) scale(1.02)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+          this.style.transform = 'translateY(0) scale(1)';
+        });
+      });
+    });
+    
+    // Add keyboard navigation
+    document.addEventListener('keydown', function(e) {
+      if (e.key === '1') navigateToBooking('parcel');
+      if (e.key === '2') navigateToBooking('food');
+      if (e.key === '3') navigateToBooking('laundry');
+    });
+  </script>
+  <!-- Info Modal -->
+  <div id="infoModal" class="modal-overlay" onclick="overlayClick(event)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+      <div class="modal-header">
+        <h3 id="infoTitle">How to use AUP Grab</h3>
+        <button class="close-btn" onclick="closeInfo()">Close</button>
+      </div>
+      <div class="modal-body">
+        <h4>What is this?</h4>
+        <ul>
+          <li>A unified portal for booking Food, Parcel, and Laundry delivery.</li>
+        </ul>
+        <h4>How to start?</h4>
+        <ul>
+          <li>Choose a service (Food, Parcel, Laundry), fill in details, submit, and track with your Order ID.</li>
+        </ul>
+        <h4>FAQs</h4>
+        <ul>
+          <li><strong>Tracking?</strong> Each service page shows status and rider info when assigned.</li>
+          <li><strong>Messaging?</strong> Riders can send you messages after they accept.</li>
+          <li><strong>Payment?</strong> Follow on-screen instructions. Some services allow cash collection.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <script src="info-modal.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Booking - Aup Grab</title>
+  <link rel="stylesheet" href="info-modal.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ffcc02 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      animation: slideUp 0.8s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #ff6b35, #f7931e);
+      color: white;
+      padding: 30px;
+      text-align: center;
+      position: relative;
+    }
+    
+    .back-btn {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s;
+    }
+    
+    .back-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    
+    .header-icon {
+      margin-bottom: 15px;
+    }
+    
+    .header-icon svg {
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
+    
+    .header p {
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+    
+    .form-container {
+      padding: 40px 30px;
+    }
+    
+    .user-session {
+      background: #fff3e0;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      border-left: 4px solid #ff6b35;
+    }
+    
+    .user-id {
+      font-family: monospace;
+      font-weight: bold;
+      color: #e65100;
+      background: rgba(255,255,255,0.7);
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-left: 5px;
+    }
+    
+    .form-group {
+      margin-bottom: 25px;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #e65100;
+      font-size: 1rem;
+    }
+    
+    .required {
+      color: #dc3545;
+    }
+    
+    input, select, textarea {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e1e1e1;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      background: #fafafa;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #ff6b35;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+    }
+    
+    .input-error {
+      border-color: #dc3545 !important;
+      background: #fff5f5 !important;
+    }
+    
+    .error-message {
+      color: #dc3545;
+      font-size: 14px;
+      margin-top: 5px;
+      display: none;
+    }
+    
+    .quantity-group {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .quantity-input {
+      width: 100px !important;
+      text-align: center;
+      font-weight: bold;
+    }
+    
+    .quantity-controls {
+      display: flex;
+      gap: 5px;
+    }
+    
+    .quantity-btn {
+      width: 40px;
+      height: 40px;
+      background: #ff6b35;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .quantity-btn:hover {
+      background: #e65100;
+      transform: scale(1.05);
+    }
+    
+    .quantity-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .payment-cost-group {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 15px;
+      border-left: 4px solid #ff6b35;
+      display: none;
+    }
+    
+    .payment-cost-group.show {
+      display: block;
+      animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .submit-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #ff6b35, #e65100);
+      color: white;
+      border: none;
+      padding: 18px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 20px;
+    }
+    
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(255, 107, 53, 0.3);
+    }
+    
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .status-section {
+      background: #f8f9fa;
+      padding: 30px;
+      border-top: 1px solid #e9ecef;
+      display: none;
+    }
+    
+    .success-message {
+      background: #d4edda;
+      color: #155724;
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid #c3e6cb;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .order-id-display {
+      background: #fff3e0;
+      padding: 20px;
+      border-radius: 10px;
+      border: 2px solid #ff6b35;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .order-id {
+      font-family: monospace;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #e65100;
+    }
+    
+    .rider-status {
+      text-align: center;
+      padding: 20px;
+      font-size: 1.1rem;
+      color: #666;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 10px;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-waiting {
+      background: #ffc107;
+    }
+    
+    .status-assigned {
+      background: #ff6b35;
+      animation: none;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    .rider-info {
+      background: linear-gradient(135deg, #ff6b35, #e65100);
+      color: white;
+      padding: 25px;
+      border-radius: 15px;
+      margin: 20px 0;
+      text-align: center;
+      animation: slideIn 0.5s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    .rider-info h3 {
+      margin-bottom: 15px;
+      font-size: 1.5rem;
+    }
+    
+    .rider-details {
+      font-size: 1.1rem;
+      margin: 8px 0;
+    }
+    
+    .confirm-btn {
+      background: linear-gradient(135deg, #ad7b05, #c9b820);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: all 0.3s;
+    }
+    
+    .confirm-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(164, 143, 37, 0.3);
+    }
+    
+    .completed-message {
+      background: linear-gradient(135deg, #ff6b35, #e65100);
+      color: white;
+      padding: 25px;
+      border-radius: 15px;
+      text-align: center;
+      animation: slideIn 0.5s ease-out;
+    }
+
+    /* Enhanced rider card UI (uniform across pages) */
+    .rider-info .rider-grid { display: grid; grid-template-columns: 72px 1fr; gap: 16px; align-items: center; text-align: left; }
+    .rider-info .avatar { width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-weight: 800; font-size: 1.25rem; box-shadow: inset 0 2px 8px rgba(0,0,0,0.25); }
+    .rider-info .name-row { display:flex; align-items:center; gap:10px; margin-bottom: 6px; }
+    .rider-info .pill { display:inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.18); font-size: 0.8rem; font-weight: 700; letter-spacing: .3px; }
+    .rider-info .rider-actions { margin-top: 12px; display:flex; gap:10px; flex-wrap: wrap; }
+    .contact-btn { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 10px 14px; border-radius: 10px; font-weight: 700; text-decoration: none; transition: all .2s; }
+    .contact-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
+    .progress { margin-top: 12px; }
+    .progress-track { width: 100%; height: 8px; background: rgba(255,255,255,0.25); border-radius: 999px; overflow:hidden; }
+    .progress-fill { height: 100%; width: 35%; background: linear-gradient(90deg, #7c4dff, #18ffff); border-radius: 999px; box-shadow: 0 0 10px rgba(24,255,255,0.5); transition: width .3s ease; }
+    
+    /* Info button */
+    .info-btn {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: none;
+      padding: 10px 12px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s;
+      line-height: 1;
+    }
+    .info-btn:hover { background: rgba(255,255,255,0.3); }
+    
+    /* Info modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index: 2000; }
+    .modal { background:#fff; width: min(720px, 92vw); max-height: 85vh; overflow:auto; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.35); }
+    .modal-header { padding:16px 20px; border-bottom:1px solid #eee; display:flex; align-items:center; justify-content:space-between; }
+    .modal-header h3 { margin:0; font-size: 1.2rem; color:#e65100; }
+    .modal-body { padding: 16px 20px; color:#333; }
+    .modal-body h4 { margin:16px 0 8px; color:#e65100; }
+    .modal-body ul { padding-left: 18px; margin: 8px 0; }
+    .close-btn { background:#eee; border:none; border-radius:8px; padding:6px 10px; cursor:pointer; }
+    
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+      .container {
+        margin: 10px;
+        border-radius: 15px;
+      }
+      
+      .form-container {
+        padding: 30px 20px;
+      }
+      
+      .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      
+      .quantity-group {
+        justify-content: center;
+      }
+      
+      .back-btn {
+        left: 15px;
+        padding: 8px 12px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <button class="back-btn" onclick="goBack()">← Back</button>
+      <button class="info-btn" onclick="openInfo()" aria-label="How to use">i</button>
+      <div class="header-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+          <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+          <line x1="6" y1="1" x2="6" y2="4"/>
+          <line x1="10" y1="1" x2="10" y2="4"/>
+          <line x1="14" y1="1" x2="14" y2="4"/>
+        </svg>
+      </div>
+      <h1>Food Booking</h1>
+      <p>Hot and fresh meals delivered to you</p>
+    </div>
+    
+    <!-- User Session Info -->
+    <div class="form-container">
+      <div class="user-session">
+        <strong>Your Session:</strong>
+        <span class="user-id" id="userSessionId"></span>
+        <div style="font-size: 12px; color: #666; margin-top: 5px;">
+          This ID helps track your booking
+        </div>
+      </div>
+      
+      <!-- Booking Form -->
+      <form id="foodForm">
+        <!-- Personal Information -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="customerName">Your Name <span class="required">*</span></label>
+            <input type="text" id="customerName" placeholder="Enter your full name" required>
+            <div class="error-message" id="nameError">Please enter your full name</div>
+          </div>
+          
+          <div class="form-group">
+            <label for="customerPhone">Phone Number <span class="required">*</span></label>
+            <input type="tel" id="customerPhone" placeholder="09123456789" required>
+            <div class="error-message" id="phoneError">Please enter a valid phone number</div>
+          </div>
+        </div>
+        
+        <!-- Pickup Location -->
+        <div class="form-group">
+          <label for="pickupLocation">Where to pickup? <span class="required">*</span></label>
+          <textarea id="pickupLocation" placeholder="Enter complete pickup location" rows="3" required></textarea>
+          <div class="error-message" id="pickupError">Please enter pickup location</div>
+        </div>
+        
+        <!-- Item Identity -->
+        <div class="form-group">
+          <label for="itemIdentity">Item Identity <span class="required">*</span></label>
+          <textarea id="itemIdentity" placeholder="Describe the food items (e.g., 2x Chicken Adobo, 1x Rice, 1x Iced Tea)" rows="3" required></textarea>
+          <div class="error-message" id="itemError">Please describe the food items</div>
+        </div>
+        
+        <!-- Quantity -->
+        <div class="form-group">
+          <label for="quantity">Quantity of Items <span class="required">*</span></label>
+          <div class="quantity-group">
+            <div class="quantity-controls">
+              <button type="button" class="quantity-btn" onclick="adjustQuantity(-1)">-</button>
+              <button type="button" class="quantity-btn" onclick="adjustQuantity(1)">+</button>
+            </div>
+            <input type="number" id="quantity" class="quantity-input" value="1" min="1" max="99" required>
+            <span style="color: #666;">total items</span>
+          </div>
+          <div class="error-message" id="quantityError">Please enter a valid quantity</div>
+        </div>
+        
+        <!-- Payment Status -->
+        <div class="form-group">
+          <label for="paymentStatus">Status of Payment <span class="required">*</span></label>
+          <select id="paymentStatus" required>
+            <option value="">Select payment status</option>
+            <option value="Paid">Already Paid</option>
+            <option value="Not Yet Paid">Not Yet Paid</option>
+          </select>
+          <div class="error-message" id="paymentError">Please select payment status</div>
+          
+          <div class="payment-cost-group" id="paymentCostGroup">
+            <label for="paymentCost">How much to collect? <span class="required">*</span></label>
+            <input type="number" id="paymentCost" placeholder="Enter amount (e.g., 350.00)" step="0.01" min="0">
+            <div style="font-size: 12px; color: #666; margin-top: 5px;">
+              Amount the rider needs to collect from you
+            </div>
+            <div class="error-message" id="paymentCostError">Please enter the payment amount</div>
+          </div>
+        </div>
+        
+        <!-- Delivery Location -->
+        <div class="form-group">
+          <label for="deliveryLocation">Where to deliver? <span class="required">*</span></label>
+          <textarea id="deliveryLocation" placeholder="Enter complete delivery address" rows="3" required></textarea>
+          <div class="error-message" id="deliveryError">Please enter delivery location</div>
+        </div>
+        
+        <!-- Notes -->
+        <div class="form-group">
+          <label for="notes">Additional Notes</label>
+          <textarea id="notes" placeholder="Special instructions, allergies, extra requests, etc." rows="3"></textarea>
+        </div>
+        
+        <!-- Submit Button -->
+        <button type="submit" class="submit-btn" id="submitBtn">
+          Submit Food Booking
+        </button>
+      </form>
+    </div>
+    
+    <!-- Status Section -->
+    <div class="status-section" id="statusSection">
+      <div class="success-message" id="successMessage"></div>
+      <div class="order-id-display" id="orderIdDisplay"></div>
+      <div class="rider-status" id="riderStatus">
+        <span class="status-indicator status-waiting"></span>
+        Looking for available rider...
+      </div>
+      <div id="riderInfo"></div>
+      <!-- Messages from rider -->
+      <div id="messagesSection" style="margin-top: 16px; display:none;">
+        <h3 style="font-size: 1rem; color:#333; margin-bottom:8px;">Messages from your rider</h3>
+        <div id="messagesList" style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px; max-height:160px; overflow:auto;"></div>
+      </div>
+      <div id="orderActions"></div>
+      <div id="completedMessage"></div>
+    </div>
+    
+    <!-- Info Modal -->
+    <div class="modal-overlay" id="infoModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>How to use</h3>
+          <button class="close-btn" onclick="closeInfo()">×</button>
+        </div>
+        <div class="modal-body">
+          <h4>Step 1: Fill out the form</h4>
+          <ul>
+            <li>Enter your name, phone number, and pickup location</li>
+            <li>Describe the food items you want to order</li>
+            <li>Select the quantity of items</li>
+          </ul>
+          <h4>Step 2: Submit your order</h4>
+          <ul>
+            <li>Review your order details</li>
+            <li>Click the "Submit Food Booking" button</li>
+          </ul>
+          <h4>Step 3: Wait for rider assignment</h4>
+          <ul>
+            <li>We will assign a rider to your order</li>
+            <li>You will receive a notification when the rider is assigned</li>
+            
+          <h4>Call</h4>
+            <li>For more information, please call us at 0992-278-8477.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // REPLACE WITH YOUR GOOGLE APP SCRIPT URL
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv69YVjiAxzYteFo7tl4LGVecznj35_kRYY4_Eca3IPmAnOouSQgTIwTqdXESQOrEP2A/exec';
+    
+    let userSessionId = null;
+    let currentOrderId = null;
+    let checkInterval = null;
+    let messagesInterval = null;
+    let lastMessageTs = '';
+    
+    // Initialize session
+    window.onload = function() {
+      initializeSession();
+      setupEventListeners();
+      restoreOrderFromStorage();
+    };
+    
+    function initializeSession() {
+      userSessionId = localStorage.getItem('userSessionId');
+      if (!userSessionId) {
+        userSessionId = generateSessionId();
+        localStorage.setItem('userSessionId', userSessionId);
+      }
+      document.getElementById('userSessionId').textContent = userSessionId;
+    }
+    
+    function generateSessionId() {
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 10000);
+      return `USER-${timestamp}-${random}`;
+    }
+    
+    function setupEventListeners() {
+      // Payment status change
+      document.getElementById('paymentStatus').addEventListener('change', function() {
+        const costGroup = document.getElementById('paymentCostGroup');
+        if (this.value === 'Not Yet Paid') {
+          costGroup.classList.add('show');
+          document.getElementById('paymentCost').required = true;
+        } else {
+          costGroup.classList.remove('show');
+          document.getElementById('paymentCost').required = false;
+        }
+      });
+      
+      // Form submission
+      document.getElementById('foodForm').addEventListener('submit', handleSubmit);
+    }
+    
+    function adjustQuantity(change) {
+      const quantityInput = document.getElementById('quantity');
+      let currentValue = parseInt(quantityInput.value) || 1;
+      let newValue = currentValue + change;
+      
+      if (newValue < 1) newValue = 1;
+      if (newValue > 99) newValue = 99;
+      
+      quantityInput.value = newValue;
+    }
+    
+    function validateForm() {
+      let isValid = true;
+      
+      // Clear previous errors
+      document.querySelectorAll('.error-message').forEach(msg => msg.style.display = 'none');
+      document.querySelectorAll('.input-error').forEach(input => input.classList.remove('input-error'));
+      
+      // Validate name
+      const name = document.getElementById('customerName').value.trim();
+      if (!name) {
+        showError('customerName', 'nameError', 'Please enter your full name');
+        isValid = false;
+      }
+      
+      // Validate phone
+      const phone = document.getElementById('customerPhone').value.trim();
+      if (!phone || phone.length < 10) {
+        showError('customerPhone', 'phoneError', 'Please enter a valid phone number');
+        isValid = false;
+      }
+      
+      // Validate pickup location
+      const pickupLocation = document.getElementById('pickupLocation').value.trim();
+      if (!pickupLocation) {
+        showError('pickupLocation', 'pickupError', 'Please enter pickup location');
+        isValid = false;
+      }
+      
+      // Validate item identity
+      const itemIdentity = document.getElementById('itemIdentity').value.trim();
+      if (!itemIdentity) {
+        showError('itemIdentity', 'itemError', 'Please describe the food items');
+        isValid = false;
+      }
+      
+      // Validate quantity
+      const quantity = parseInt(document.getElementById('quantity').value);
+      if (!quantity || quantity < 1) {
+        showError('quantity', 'quantityError', 'Please enter a valid quantity');
+        isValid = false;
+      }
+      
+      // Validate payment status
+      const paymentStatus = document.getElementById('paymentStatus').value;
+      if (!paymentStatus) {
+        showError('paymentStatus', 'paymentError', 'Please select payment status');
+        isValid = false;
+      }
+      
+      // Validate payment cost if not yet paid
+      if (paymentStatus === 'Not Yet Paid') {
+        const paymentCost = parseFloat(document.getElementById('paymentCost').value);
+        if (!paymentCost || paymentCost <= 0) {
+          showError('paymentCost', 'paymentCostError', 'Please enter the payment amount');
+          isValid = false;
+        }
+      }
+      
+      // Validate delivery location
+      const deliveryLocation = document.getElementById('deliveryLocation').value.trim();
+      if (!deliveryLocation) {
+        showError('deliveryLocation', 'deliveryError', 'Please enter delivery location');
+        isValid = false;
+      }
+      
+      return isValid;
+    }
+    
+    function showError(inputId, errorId, message) {
+      document.getElementById(inputId).classList.add('input-error');
+      const errorElement = document.getElementById(errorId);
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+    }
+    
+    function handleSubmit(e) {
+      e.preventDefault();
+      
+      if (!validateForm()) {
+        return;
+      }
+      
+      const formData = {
+        action: 'submit_booking',
+        sessionId: userSessionId,
+        type: 'food',
+        customerName: document.getElementById('customerName').value.trim(),
+        customerPhone: document.getElementById('customerPhone').value.trim(),
+        pickupLocation: document.getElementById('pickupLocation').value.trim(),
+        itemIdentity: document.getElementById('itemIdentity').value.trim(),
+        quantity: parseInt(document.getElementById('quantity').value),
+        paymentStatus: document.getElementById('paymentStatus').value,
+        paymentCost: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? 
+                     parseFloat(document.getElementById('paymentCost').value) : 0,
+        deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
+        notes: document.getElementById('notes').value.trim(),
+        timestamp: new Date().toISOString()
+      };
+      
+      submitBooking(formData);
+    }
+    
+    function submitBooking(formData) {
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+      
+      // Submit to Google App Script
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          // Use text/plain to avoid CORS preflight with Apps Script
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify(formData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          currentOrderId = data.order_id;
+          
+          // Show success
+          document.getElementById('successMessage').textContent = data.message;
+          document.getElementById('orderIdDisplay').innerHTML = `
+            <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
+            <div class="order-id">${currentOrderId}</div>
+          `;
+          
+          document.getElementById('statusSection').style.display = 'block';
+          
+          // Start checking for rider assignment
+          startRiderCheck();
+          // Start messages polling
+          startMessagesPolling();
+          // Persist order to localStorage
+          localStorage.setItem('currentOrder', JSON.stringify({
+            orderId: currentOrderId,
+            status: 'pending',
+            lastUpdated: new Date().toISOString()
+          }));
+          
+          // Scroll to status section
+          document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth' });
+        } else {
+          alert('Error: ' + data.message);
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Submit Food Booking';
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Error submitting booking. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Food Booking';
+      });
+    }
+    
+    function startRiderCheck() {
+      checkInterval = setInterval(() => {
+        // Check booking status from Google Sheets
+        fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.success && data.booking) {
+              updateOrderStatus(data.booking);
+              // persist status
+              try {
+                const saved = JSON.parse(localStorage.getItem('currentOrder') || '{}');
+                if (saved && saved.orderId === currentOrderId) {
+                  saved.status = data.booking.status;
+                  saved.lastUpdated = new Date().toISOString();
+                  localStorage.setItem('currentOrder', JSON.stringify(saved));
+                }
+              } catch {}
+            }
+          })
+          .catch(error => console.error('Error checking status:', error));
+      }, 3000); // Check every 3 seconds for faster updates
+    }
+
+    // Enhanced real-time update function
+    function updateOrderStatus(booking) {
+      const statusElement = document.getElementById('riderStatus');
+      const riderInfoElement = document.getElementById('riderInfo');
+      
+      switch(booking.status) {
+        case 'pending':
+          statusElement.innerHTML = `
+            <span class="status-indicator status-waiting"></span>
+            Searching for rider...
+          `;
+          break;
+          
+        case 'assigned':
+          clearInterval(checkInterval);
+          assignRider(booking);
+          // Start tracking delivery status
+          startDeliveryTracking();
+          break;
+          
+        case 'picked_up':
+          statusElement.innerHTML = `
+            <span class="status-indicator status-assigned"></span>
+            Food picked up - On the way!
+          `;
+          updateRiderLocation(booking);
+          break;
+          
+        case 'delivered':
+          statusElement.innerHTML = `
+            <span class="status-indicator status-completed"></span>
+            Food delivered!
+          `;
+          showDeliveryConfirmation();
+          break;
+      }
+    }
+
+    // Track delivery in real-time
+    function startDeliveryTracking() {
+      deliveryInterval = setInterval(() => {
+        fetch(`${SCRIPT_URL}?action=get_delivery_status&order_id=${currentOrderId}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.success && data.delivery) {
+              updateDeliveryProgress(data.delivery);
+            }
+          })
+          .catch(error => console.error('Error tracking delivery:', error));
+      }, 2000); // Check every 2 seconds during delivery
+    }
+
+    // Update delivery progress
+    function updateDeliveryProgress(delivery) {
+      const progressElement = document.getElementById('deliveryProgress');
+      if (!progressElement) {
+        // Create progress element if it doesn't exist
+        const riderInfo = document.getElementById('riderInfo');
+        riderInfo.innerHTML += `
+          <div id="deliveryProgress" class="delivery-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: 0%"></div>
+            </div>
+  <!-- Info Modal -->
+  <div id="infoModal" class="modal-overlay" onclick="overlayClick(event)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+      <div class="modal-header">
+        <h3 id="infoTitle">How to use Food Booking</h3>
+        <button class="close-btn" onclick="closeInfo()">Close</button>
+      </div>
+      <div class="modal-body">
+        <h4>Quick Start</h4>
+        <ul>
+          <li>Enter your details and food order information.</li>
+          <li>Submit to create an order and get an Order ID.</li>
+          <li>Track status and rider assignment in real-time.</li>
+        </ul>
+        <h4>FAQs</h4>
+        <ul>
+          <li><strong>How do I pay?</strong> Follow the payment instructions shown or pay on delivery if applicable.</li>
+          <li><strong>When do I see rider info?</strong> After assignment, the rider's name and phone are shown.</li>
+          <li><strong>Can the rider message me?</strong> Yes, messages will appear in the Messages section.</li>
+          <li><strong>How to confirm delivery?</strong> Click "Confirm Food Delivery Received" once delivered.</li>
+          <li><strong>Not seeing updates?</strong> Ensure internet connectivity; page auto-polls and your order persists on refresh.</li>
+          <li><strong>Data privacy?</strong> We store minimal info necessary to fulfill your order.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+            <div class="eta-info">ETA: Calculating...</div>
+          </div>
+        `;
+      }
+      
+      // Update progress based on delivery status
+      const progressFill = document.querySelector('.progress-fill');
+      const etaInfo = document.querySelector('.eta-info');
+      
+      if (delivery.progress) {
+        progressFill.style.width = delivery.progress + '%';
+        etaInfo.textContent = `ETA: ${delivery.eta} minutes`;
+      }
+    }
+    
+    function assignRider(booking) {
+      clearInterval(checkInterval);
+      document.getElementById('riderStatus').innerHTML = `
+        <span class="status-indicator status-assigned"></span>
+        Rider assigned!
+      `;
+      const initials = (booking.rider_name || '').trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase() || 'R';
+      document.getElementById('riderInfo').innerHTML = `
+        <div class="rider-info">
+          <div class="rider-grid">
+            <div class="avatar">${initials}</div>
+            <div>
+              <div class="name-row">
+                <h3 style="margin:0;">${booking.rider_name}</h3>
+                <span class="pill">Assigned</span>
+              </div>
+              <div class="rider-details">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 1 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 1 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+                <a class="contact-btn" href="tel:${booking.rider_phone}">Call ${booking.rider_phone}</a>
+              </div>
+              <div class="rider-details">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12,6 12,12 16,14"/>
+                </svg>
+                ETA: 20–30 minutes
+              </div>
+              <div class="rider-details">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <span id="riderStatusText">Status: On the way to pickup food</span>
+              </div>
+              <div class="progress">
+                <div class="progress-track"><div class="progress-fill" id="riderProgressFill" style="width:35%"></div></div>
+              </div>
+            </div>
+          </div>
+          <div id="messagesContainer" style="margin-top:14px; text-align:left;">
+            <div style="font-weight:700; margin-bottom:6px;">Messages from your rider</div>
+            <div id="messagesList" style="max-height:160px; overflow:auto; background:rgba(255,255,255,0.12); padding:10px; border-radius:10px; color:#000;"></div>
+          </div>
+          <div class="rider-actions">
+            <a class="contact-btn" href="tel:${booking.rider_phone}">📞 Call Rider</a>
+          </div>
+        </div>
+      `;
+      document.getElementById('orderActions').innerHTML = `
+        <button class="confirm-btn" onclick="confirmDelivery()">Confirm Food Delivery Received</button>
+      `;
+    }
+    
+    function confirmDelivery() {
+      // Mark booking as completed in Google Sheets
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          // Use text/plain to avoid CORS preflight with Apps Script
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify({ 
+          action: 'complete_booking',
+          order_id: currentOrderId 
+        })
+      })
+      .then(async response => {
+        const raw = await response.text();
+        try {
+          return JSON.parse(raw);
+        } catch (e) {
+          console.warn('Non-JSON response from complete_booking (user):', raw);
+          throw new Error('Unexpected response from server: ' + raw.slice(0, 200));
+        }
+      })
+      .then(data => {
+        if (data.success) {
+          // Update rider UI to reflect completion
+          const statusEl = document.getElementById('riderStatusText');
+          if (statusEl) statusEl.textContent = 'Status: Completed';
+          const progressFill = document.getElementById('riderProgressFill');
+          if (progressFill) progressFill.style.width = '100%';
+          document.getElementById('completedMessage').innerHTML = `
+            <div class="completed-message">
+              <h3>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px;">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22,4 12,14.01 9,11.01"/>
+                </svg>
+                Order Completed!
+              </h3>
+              <p>Thank you for using Aup Grab. Your food has been delivered successfully.</p>
+              <p style="margin-top: 15px;">Order ID: <strong>${currentOrderId}</strong></p>
+              <div style="margin-top:16px;">
+                <button class="confirm-btn" onclick="placeNewOrder()">Place New Order</button>
+              </div>
+            </div>
+          `;
+          document.getElementById('orderActions').style.display = 'none';
+          try {
+            localStorage.setItem('currentOrder', JSON.stringify({ orderId: currentOrderId, status: 'delivered', lastUpdated: new Date().toISOString() }));
+          } catch {}
+        } else {
+          alert('Error completing order: ' + (data.message || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert(error && error.message ? error.message : 'Error completing order. Please try again.');
+      });
+    }
+    
+    function placeNewOrder() {
+      try { localStorage.removeItem('currentOrder'); } catch {}
+      try {
+        if (checkInterval) clearInterval(checkInterval);
+        if (deliveryInterval) clearInterval(deliveryInterval);
+        if (messagesInterval) clearInterval(messagesInterval);
+      } catch {}
+      window.location.href = 'index.html';
+    }
+
+    // Restore receipt on refresh
+    function restoreOrderFromStorage() {
+      try {
+        const savedRaw = localStorage.getItem('currentOrder');
+        if (!savedRaw) return;
+        const saved = JSON.parse(savedRaw);
+        if (!saved || !saved.orderId) return;
+        currentOrderId = saved.orderId;
+        // Show receipt
+        document.getElementById('statusSection').style.display = 'block';
+        document.getElementById('orderIdDisplay').innerHTML = `
+          <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
+          <div class="order-id">${currentOrderId}</div>
+        `;
+        // If delivered, show completed message; else resume polling
+        if (saved.status === 'delivered') {
+          document.getElementById('completedMessage').innerHTML = `
+            <div class="completed-message">
+              <h3>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px;">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22,4 12,14.01 9,11.01"/>
+                </svg>
+                Order Completed!
+              </h3>
+              <p>Thank you for using Aup Grab. Your food has been delivered successfully.</p>
+              <p style="margin-top: 15px;">Order ID: <strong>${currentOrderId}</strong></p>
+              <div style="margin-top:16px;">
+                <button class="confirm-btn" onclick="placeNewOrder()">Place New Order</button>
+              </div>
+            </div>
+          `;
+          document.getElementById('orderActions').style.display = 'none';
+        } else {
+          startRiderCheck();
+          startMessagesPolling();
+        }
+      } catch (e) {
+        console.warn('Failed to restore order from storage', e);
+      }
+    }
+
+    // Messages polling
+    function startMessagesPolling() {
+      if (!currentOrderId) return;
+      const mc = document.getElementById('messagesContainer');
+      if (mc) mc.style.display = 'block';
+      fetchMessages();
+      if (messagesInterval) clearInterval(messagesInterval);
+      messagesInterval = setInterval(fetchMessages, 4000);
+    }
+
+    function fetchMessages() {
+      const url = `${SCRIPT_URL}?action=get_messages&order_id=${encodeURIComponent(currentOrderId)}${lastMessageTs ? `&since=${encodeURIComponent(lastMessageTs)}` : ''}`;
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.success || !Array.isArray(data.messages)) return;
+          const list = document.getElementById('messagesList');
+          data.messages.forEach(msg => {
+            const item = document.createElement('div');
+            item.style.padding = '6px 8px';
+            item.style.marginBottom = '6px';
+            item.style.background = '#fff';
+            item.style.borderRadius = '6px';
+            item.style.color = '#000';
+            item.textContent = `${new Date(msg.timestamp).toLocaleTimeString()} - ${msg.text}`;
+            list.appendChild(item);
+            lastMessageTs = msg.timestamp;
+          });
+          // Auto-scroll to bottom
+          list.scrollTop = list.scrollHeight;
+        })
+        .catch(err => console.warn('fetchMessages error', err));
+    }
+    // Info modal handlers moved to shared file
+
+    // Back navigation
+    function goBack() {
+      window.location.href = 'index.html';
+    }
+  </script>
+  <script src="info-modal.js"></script>
+</body>
+</html>
+

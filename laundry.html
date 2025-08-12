@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laundry Booking - Aup Grab</title>
+  <link rel="stylesheet" href="info-modal.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #9c27b0 0%, #673ab7 50%, #3f51b5 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      animation: slideUp 0.8s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #9c27b0, #673ab7);
+      color: white;
+      padding: 30px;
+      text-align: center;
+      position: relative;
+    }
+    
+    .back-btn {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s;
+    }
+    
+    .back-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    
+    .header-icon {
+      margin-bottom: 15px;
+    }
+    
+    .header-icon svg {
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
+    
+    .header p {
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+    
+    .form-container {
+      padding: 40px 30px;
+    }
+    
+    .user-session {
+      background: #f3e5f5;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      border-left: 4px solid #9c27b0;
+    }
+    
+    .user-id {
+      font-family: monospace;
+      font-weight: bold;
+      color: #4a148c;
+      background: rgba(255,255,255,0.7);
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-left: 5px;
+    }
+    
+    .form-group {
+      margin-bottom: 25px;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #4a148c;
+      font-size: 1rem;
+    }
+    
+    .required {
+      color: #dc3545;
+    }
+    
+    input, select, textarea {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e1e1e1;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      background: #fafafa;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #9c27b0;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(156, 39, 176, 0.1);
+    }
+    
+    .input-error {
+      border-color: #dc3545 !important;
+      background: #fff5f5 !important;
+    }
+    
+    .error-message {
+      color: #dc3545;
+      font-size: 14px;
+      margin-top: 5px;
+      display: none;
+    }
+    
+    .payment-cost-group {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 15px;
+      border-left: 4px solid #9c27b0;
+      display: none;
+    }
+    
+    .payment-cost-group.show {
+      display: block;
+      animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    /* Completed message styling (match purple theme) */
+    .completed-message {
+      background: linear-gradient(135deg, #9c27b0, #673ab7);
+      color: white;
+      padding: 25px;
+      border-radius: 15px;
+      text-align: center;
+      animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    .submit-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #9c27b0, #4a148c);
+      color: white;
+      border: none;
+      padding: 18px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 20px;
+    }
+    
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(156, 39, 176, 0.3);
+    }
+    
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .status-section {
+      background: #f8f9fa;
+      padding: 30px;
+      border-top: 1px solid #e9ecef;
+      display: none;
+    }
+    
+    .success-message {
+      background: #d4edda;
+      color: #155724;
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid #c3e6cb;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .order-id-display {
+      background: #f3e5f5;
+      padding: 20px;
+      border-radius: 10px;
+      border: 2px solid #9c27b0;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .order-id {
+      font-family: monospace;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #4a148c;
+    }
+    
+    .rider-status {
+      text-align: center;
+      padding: 20px;
+      font-size: 1.1rem;
+      color: #666;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 10px;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-waiting {
+      background: #ffc107;
+    }
+    
+    .status-assigned {
+      background: #9c27b0;
+      animation: none;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    .rider-info {
+      background: linear-gradient(135deg, #9c27b0, #4a148c);
+      color: white;
+      padding: 25px;
+      border-radius: 15px;
+      margin: 20px 0;
+      text-align: center;
+      animation: slideIn 0.5s ease-out;
+    }
+    /* Enhanced rider card UI */
+    .rider-info .rider-grid { display: grid; grid-template-columns: 72px 1fr; gap: 16px; align-items: center; text-align: left; }
+    .rider-info .avatar { width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-weight: 800; font-size: 1.25rem; box-shadow: inset 0 2px 8px rgba(0,0,0,0.25); }
+    .rider-info .name-row { display:flex; align-items:center; gap:10px; margin-bottom: 6px; }
+    .rider-info .pill { display:inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.18); font-size: 0.8rem; font-weight: 700; letter-spacing: .3px; }
+    .rider-info .rider-details { opacity: .95; }
+    .rider-info .rider-actions { margin-top: 12px; display:flex; gap:10px; flex-wrap: wrap; }
+    .contact-btn { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 10px 14px; border-radius: 10px; font-weight: 700; text-decoration: none; transition: all .2s; }
+    .contact-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
+    .progress { margin-top: 12px; }
+    .progress-track { width: 100%; height: 8px; background: rgba(255,255,255,0.25); border-radius: 999px; overflow:hidden; }
+    .progress-fill { height: 100%; width: 30%; background: #00e5ff; background: linear-gradient(90deg, #7c4dff, #18ffff); border-radius: 999px; box-shadow: 0 0 10px rgba(24,255,255,0.5); transition: width .3s ease; }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    .rider-info h3 {
+      margin-bottom: 15px;
+      font-size: 1.5rem;
+    }
+    
+    .rider-details {
+      font-size: 1.1rem;
+      margin: 8px 0;
+    }
+    
+    .confirm-btn {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: all 0.3s;
+    }
+    
+    /* modal styles moved to info-modal.css */
+    
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <button class="back-btn" onclick="goBack()">← Back</button>
+      <button class="info-btn" onclick="openInfo()" aria-label="How to use">i</button>
+      <div class="header-icon">
+        <!-- ... existing icon ... -->
+      </div>
+      <h1>Laundry Booking</h1>
+      <p>Clean clothes delivered back to you</p>
+    </div>
+    <div class="form-container">
+      <div class="user-session">
+        <strong>Your Session:</strong>
+        <span class="user-id" id="userSessionId"></span>
+        <div style="font-size: 12px; color: #666; margin-top: 5px;">
+          This ID helps track your booking
+        </div>
+      </div>
+
+      <!-- Booking Form -->
+      <form id="laundryForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="customerName">Your Name <span class="required">*</span></label>
+            <input type="text" id="customerName" placeholder="Enter your full name" required>
+            <div class="error-message" id="nameError">Please enter your full name</div>
+          </div>
+          <div class="form-group">
+            <label for="customerPhone">Phone Number <span class="required">*</span></label>
+            <input type="tel" id="customerPhone" placeholder="09123456789" required>
+            <div class="error-message" id="phoneError">Please enter a valid phone number</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="pickupLocation">Pickup Location <span class="required">*</span></label>
+          <textarea id="pickupLocation" placeholder="Enter complete pickup address" rows="3" required></textarea>
+          <div class="error-message" id="pickupError">Please enter pickup location</div>
+        </div>
+
+        <div class="form-group">
+          <label for="deliveryLocation">Delivery Location <span class="required">*</span></label>
+          <textarea id="deliveryLocation" placeholder="Enter delivery address (where to return laundry)" rows="3" required></textarea>
+          <div class="error-message" id="deliveryError">Please enter delivery location</div>
+        </div>
+
+        <div class="form-group">
+          <label for="basket">Laundry Basket/Details <span class="required">*</span></label>
+          <input type="text" id="basket" placeholder="e.g., 1 large basket, include bedsheets" required>
+          <div class="error-message" id="basketError">Please enter laundry details</div>
+        </div>
+
+        <div class="form-group">
+          <label for="paymentStatus">Payment Status <span class="required">*</span></label>
+          <select id="paymentStatus" required>
+            <option value="">Select payment status</option>
+            <option value="Paid">Already Paid</option>
+            <option value="Not Yet Paid">Not Yet Paid</option>
+          </select>
+          <div class="error-message" id="paymentError">Please select payment status</div>
+          <div class="payment-cost-group" id="paymentCostGroup">
+            <label for="paymentCost">How much to collect? <span class="required">*</span></label>
+            <input type="number" id="paymentCost" placeholder="Enter amount (e.g., 250.00)" step="0.01" min="0">
+            <div style="font-size: 12px; color: #666; margin-top: 5px;">Amount the rider needs to collect from recipient</div>
+            <div class="error-message" id="paymentCostError">Please enter the payment amount</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="notes">Additional Notes</label>
+          <textarea id="notes" placeholder="Special instructions (e.g., separate whites, delicate items)" rows="3"></textarea>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">Submit Laundry Booking</button>
+      </form>
+    </div>
+
+    <!-- Status Section -->
+    <div class="status-section" id="statusSection">
+      <div class="success-message" id="successMessage"></div>
+      <div class="order-id-display" id="orderIdDisplay"></div>
+      <div class="rider-status" id="riderStatus">
+        <span class="status-indicator status-waiting"></span>
+        Looking for available rider...
+      </div>
+      <div id="riderInfo"></div>
+      <div id="orderActions"></div>
+      <div id="completedMessage"></div>
+    </div>
+  </div>
+
+  <!-- Info Modal -->
+  <div id="infoModal" class="modal-overlay" onclick="overlayClick(event)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+      <div class="modal-header">
+        <h3 id="infoTitle">How to use Laundry Booking</h3>
+        <button class="close-btn" onclick="closeInfo()">Close</button>
+      </div>
+      <div class="modal-body">
+        <h4>Quick Start</h4>
+        <ul>
+          <li>Enter your details and laundry info (pickup location, basket, etc.).</li>
+          <li>Submit to get an Order ID and start tracking.</li>
+        </ul>
+        <h4>FAQs</h4>
+        <ul>
+          <li><strong>How are fees handled?</strong> Follow the payment status you select; riders may collect if needed.</li>
+          <li><strong>Rider assignment?</strong> Rider info appears once assigned; status updates in near real-time.</li>
+          <li><strong>Messaging?</strong> Rider can send you messages; you’ll see them under Messages.</li>
+          <li><strong>Confirm when done?</strong> Tap confirm when your laundry is delivered.</li>
+          <h4>Call</h4>
+            <li>For more information, please call us at 0992-278-8477.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // REPLACE WITH YOUR GOOGLE APP SCRIPT URL
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv69YVjiAxzYteFo7tl4LGVecznj35_kRYY4_Eca3IPmAnOouSQgTIwTqdXESQOrEP2A/exec';
+
+    const STORAGE_KEY = 'currentLaundryOrder';
+    let userSessionId = null;
+    let currentOrderId = null;
+    let checkInterval = null;
+    let messageInterval = null;
+    let lastMessageTs = null;
+
+    window.onload = function() {
+      initializeSession();
+      setupEventListeners();
+      restoreFromStorage();
+    };
+
+    function initializeSession() {
+      userSessionId = localStorage.getItem('userSessionId');
+      if (!userSessionId) {
+        userSessionId = generateSessionId();
+        localStorage.setItem('userSessionId', userSessionId);
+      }
+      document.getElementById('userSessionId').textContent = userSessionId;
+    }
+
+    function generateSessionId() {
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 10000);
+      return `USER-${timestamp}-${random}`;
+    }
+
+    function setupEventListeners() {
+      document.getElementById('paymentStatus').addEventListener('change', function() {
+        const costGroup = document.getElementById('paymentCostGroup');
+        if (this.value === 'Not Yet Paid') {
+          costGroup.classList.add('show');
+          document.getElementById('paymentCost').required = true;
+        } else {
+          costGroup.classList.remove('show');
+          document.getElementById('paymentCost').required = false;
+        }
+      });
+
+      document.getElementById('laundryForm').addEventListener('submit', handleSubmit);
+    }
+
+    function validateForm() {
+      let isValid = true;
+      document.querySelectorAll('.error-message').forEach(msg => msg.style.display = 'none');
+      document.querySelectorAll('.input-error').forEach(input => input.classList.remove('input-error'));
+
+      const name = document.getElementById('customerName').value.trim();
+      if (!name) { showError('customerName', 'nameError', 'Please enter your full name'); isValid = false; }
+
+      const phone = document.getElementById('customerPhone').value.trim();
+      if (!phone || phone.length < 10) { showError('customerPhone', 'phoneError', 'Please enter a valid phone number'); isValid = false; }
+
+      const pickup = document.getElementById('pickupLocation').value.trim();
+      if (!pickup) { showError('pickupLocation', 'pickupError', 'Please enter pickup location'); isValid = false; }
+
+      const delivery = document.getElementById('deliveryLocation').value.trim();
+      if (!delivery) { showError('deliveryLocation', 'deliveryError', 'Please enter delivery location'); isValid = false; }
+
+      const basket = document.getElementById('basket').value.trim();
+      if (!basket) { showError('basket', 'basketError', 'Please enter laundry details'); isValid = false; }
+
+      const paymentStatus = document.getElementById('paymentStatus').value;
+      if (!paymentStatus) { showError('paymentStatus', 'paymentError', 'Please select payment status'); isValid = false; }
+
+      if (paymentStatus === 'Not Yet Paid') {
+        const paymentCost = parseFloat(document.getElementById('paymentCost').value);
+        if (!paymentCost || paymentCost <= 0) { showError('paymentCost', 'paymentCostError', 'Please enter the payment amount'); isValid = false; }
+      }
+      return isValid;
+    }
+
+    function showError(inputId, errorId, message) {
+      document.getElementById(inputId).classList.add('input-error');
+      const errorElement = document.getElementById(errorId);
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+    }
+
+    function handleSubmit(e) {
+      e.preventDefault();
+      if (!validateForm()) return;
+
+      const formData = {
+        action: 'submit_booking',
+        sessionId: userSessionId,
+        type: 'laundry',
+        customerName: document.getElementById('customerName').value.trim(),
+        customerPhone: document.getElementById('customerPhone').value.trim(),
+        pickupLocation: document.getElementById('pickupLocation').value.trim(),
+        deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
+        basketName: document.getElementById('basket').value.trim(),
+        paymentStatus: document.getElementById('paymentStatus').value,
+        paymentCost: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? parseFloat(document.getElementById('paymentCost').value) : 0,
+        notes: document.getElementById('notes').value.trim(),
+        timestamp: new Date().toISOString()
+      };
+      submitBooking(formData);
+    }
+
+    function submitBooking(formData) {
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(formData)
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          currentOrderId = data.order_id;
+          document.getElementById('successMessage').textContent = data.message;
+          document.getElementById('orderIdDisplay').innerHTML = `
+            <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
+            <div class="order-id">${currentOrderId}</div>`;
+          document.getElementById('statusSection').style.display = 'block';
+          saveOrderState({ orderId: currentOrderId, status: 'pending' });
+          startRiderCheck();
+          document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth' });
+        } else {
+          alert('Error: ' + data.message);
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Submit Laundry Booking';
+        }
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        alert('Error submitting booking. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Laundry Booking';
+      });
+    }
+
+    function startRiderCheck() {
+      stopIntervals();
+      checkInterval = setInterval(() => {
+        fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
+          .then(r => r.json())
+          .then(data => {
+            if (!data || !data.success || !data.booking) return;
+            const b = data.booking;
+            if (b.status === 'assigned') {
+              assignRider(b);
+            } else if (b.status === 'delivered') {
+              showCompletedReceipt();
+              saveOrderState({ orderId: currentOrderId, status: 'delivered' });
+              stopIntervals();
+            }
+          })
+          .catch(() => {});
+      }, 4000);
+    }
+
+    function assignRider(booking) {
+      saveOrderState({ orderId: currentOrderId, status: 'assigned' });
+      stopIntervals();
+      document.getElementById('riderStatus').innerHTML = `
+        <span class="status-indicator status-assigned"></span>
+        Rider assigned!
+      `;
+      const initials = (booking.rider_name || '').trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase() || 'R';
+      document.getElementById('riderInfo').innerHTML = `
+        <div class="rider-info">
+          <div class="rider-grid">
+            <div class="avatar">${initials}</div>
+            <div>
+              <div class="name-row">
+                <h3 style="margin:0;">${booking.rider_name}</h3>
+                <span class="pill">Assigned</span>
+              </div>
+              <div class="rider-details">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 1 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 1 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+                <a class="contact-btn" href="tel:${booking.rider_phone}">Call ${booking.rider_phone}</a>
+              </div>
+              <div class="rider-details">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12,6 12,12 16,14"/>
+                </svg>
+                ETA: 20–30 minutes
+              </div>
+              <div class="rider-details">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <span id="riderStatusText">Status: On the way to pickup laundry</span>
+              </div>
+              <div class="progress">
+                <div class="progress-track"><div class="progress-fill" id="riderProgressFill" style="width:35%"></div></div>
+              </div>
+            </div>
+          </div>
+          <div id="messagesContainer" style="margin-top:14px; text-align:left;">
+            <div style="font-weight:700; margin-bottom:6px;">Messages from your rider</div>
+            <div id="messagesList" style="max-height:160px; overflow:auto; background:rgba(255,255,255,0.12); padding:10px; border-radius:10px; color:#000;"></div>
+          </div>
+          <div class="rider-actions">
+            <a class="contact-btn" href="tel:${booking.rider_phone}">📞 Call Rider</a>
+          </div>
+        </div>
+      `;
+      document.getElementById('orderActions').innerHTML = `
+        <button class="confirm-btn" onclick="confirmDelivery()">
+          Confirm Laundry Delivery Received
+        </button>
+      `;
+      startMessagesPolling();
+    }
+
+    function confirmDelivery() {
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'complete_booking', order_id: currentOrderId })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          saveOrderState({ orderId: currentOrderId, status: 'delivered' });
+          // Update rider assignment status locally to reflect completion
+          const statusEl = document.getElementById('riderStatusText');
+          if (statusEl) {
+            statusEl.textContent = 'Status: Completed';
+          }
+          // Fill the blue progress line to 100%
+          const progressFill = document.getElementById('riderProgressFill');
+          if (progressFill) {
+            progressFill.style.width = '100%';
+          }
+          showCompletedReceipt();
+          stopIntervals();
+        } else {
+          alert('Error completing order: ' + data.message);
+        }
+      })
+      .catch(() => alert('Error completing order. Please try again.'));
+    }
+
+    function showCompletedReceipt() {
+      document.getElementById('completedMessage').innerHTML = `
+        <div class="completed-message">
+          <h3>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px;">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22,4 12,14.01 9,11.01"/>
+            </svg>
+            Order Completed!
+          </h3>
+          <p>Thank you for using Aup Grab. Your laundry has been delivered successfully.</p>
+          <p style="margin-top: 15px;">Order ID: <strong>${currentOrderId}</strong></p>
+          <div style="margin-top:16px;">
+            <button class="confirm-btn" onclick="placeNewOrder()">Place New Order</button>
+          </div>
+        </div>`;
+      document.getElementById('orderActions').style.display = 'none';
+    }
+
+    function placeNewOrder() {
+      localStorage.removeItem(STORAGE_KEY);
+      stopIntervals();
+      window.location.href = 'index.html';
+    }
+
+    function startMessagesPolling() {
+      stopMessageIntervalOnly();
+      lastMessageTs = null;
+      messageInterval = setInterval(() => {
+        const url = `${SCRIPT_URL}?action=get_messages&order_id=${encodeURIComponent(currentOrderId)}${lastMessageTs ? `&since=${encodeURIComponent(lastMessageTs)}` : ''}`;
+        fetch(url)
+          .then(r => r.json())
+          .then(data => {
+            if (!data || !data.success || !Array.isArray(data.messages)) return;
+            if (data.messages.length > 0) {
+              renderMessages(data.messages);
+              const last = data.messages[data.messages.length - 1];
+              if (last && last.timestamp) lastMessageTs = last.timestamp;
+            }
+          })
+          .catch(() => {});
+      }, 4000);
+    }
+
+    function renderMessages(msgs) {
+      const list = document.getElementById('messagesList');
+      if (!list) return;
+      const fr = document.createDocumentFragment();
+      msgs.forEach(m => {
+        const div = document.createElement('div');
+        div.style.padding = '6px 8px';
+        div.style.marginBottom = '6px';
+        div.style.background = '#fff';
+        div.style.borderRadius = '6px';
+        div.style.color = '#000';
+        const ts = m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '';
+        div.textContent = `${ts} - ${m.text}`;
+        fr.appendChild(div);
+      });
+      list.appendChild(fr);
+      list.scrollTop = list.scrollHeight;
+    }
+
+    function saveOrderState(state) {
+      try {
+        const toSave = { orderId: state.orderId || currentOrderId, status: state.status };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+      } catch {}
+    }
+
+    function restoreFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (!saved || !saved.orderId) return;
+        currentOrderId = saved.orderId;
+        document.getElementById('statusSection').style.display = 'block';
+        document.getElementById('orderIdDisplay').innerHTML = `
+          <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
+          <div class="order-id">${currentOrderId}</div>`;
+        if (saved.status === 'assigned') {
+          fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
+            .then(r => r.json())
+            .then(d => { if (d.success && d.booking) assignRider(d.booking); else startRiderCheck(); })
+            .catch(() => startRiderCheck());
+        } else if (saved.status === 'delivered') {
+          showCompletedReceipt();
+        } else {
+          startRiderCheck();
+        }
+      } catch {}
+    }
+
+    function stopMessageIntervalOnly() {
+      if (messageInterval) { clearInterval(messageInterval); messageInterval = null; }
+    }
+
+    function stopIntervals() {
+      if (checkInterval) { clearInterval(checkInterval); checkInterval = null; }
+      stopMessageIntervalOnly();
+    }
+
+    function goBack() { window.location.href = 'index.html'; }
+  </script>
+  <script src="info-modal.js"></script>
+</body>
+</html>
