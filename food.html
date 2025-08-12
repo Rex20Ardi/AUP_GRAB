@@ -386,6 +386,20 @@
     
     /* Mobile adjustments for rider info */
     @media (max-width: 420px) {
+      /* Header: use grid to avoid overlaps */
+      .header {
+        padding: 16px;
+        text-align: center;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        row-gap: 8px;
+      }
+      .back-btn, .info-btn { position: static; transform: none; padding: 8px 12px; font-size: 14px; }
+      .back-btn { justify-self: start; }
+      .info-btn { justify-self: end; }
+      .header-icon { grid-column: 1 / -1; }
+      .header h1 { grid-column: 1 / -1; font-size: 1.4rem; margin: 4px 0; }
+      .header p { grid-column: 1 / -1; font-size: 0.95rem; }
       .rider-info .rider-grid { grid-template-columns: 56px 1fr; gap: 12px; }
       .rider-info .avatar { width: 56px; height: 56px; font-size: 1rem; }
       .rider-details { font-size: 0.95rem; word-break: break-word; }
