@@ -723,14 +723,44 @@
         const count = option.querySelector('.rider-count');
         if (!check || !count) return;
 
+        // Add +/- controls next to each count input
+        const minusBtn = document.createElement('button');
+        minusBtn.type = 'button';
+        minusBtn.textContent = '−';
+        minusBtn.className = 'count-btn count-minus';
+        minusBtn.style.cssText = 'margin-left:6px; width:28px; height:28px; border-radius:6px; border:none; background:#eee; color:#000;';
+
+        const plusBtn = document.createElement('button');
+        plusBtn.type = 'button';
+        plusBtn.textContent = '+';
+        plusBtn.className = 'count-btn count-plus';
+        plusBtn.style.cssText = 'margin-left:4px; width:28px; height:28px; border-radius:6px; border:none; background:#eee; color:#000;';
+
+        // Insert buttons after the input
+        count.parentNode.insertBefore(minusBtn, count.nextSibling);
+        count.parentNode.insertBefore(plusBtn, minusBtn.nextSibling);
+
+        function setEnabled(enabled) {
+          count.disabled = !enabled;
+          minusBtn.disabled = !enabled;
+          plusBtn.disabled = !enabled;
+          if (!enabled) {
+            // Reset visual if unselected; keep value but remove from selection map
+            option.classList.remove('selected');
+          }
+        }
+
+        // Initialize disabled state
+        setEnabled(check.checked);
+
         check.addEventListener('change', () => {
           if (check.checked) {
-            count.disabled = false;
+            setEnabled(true);
             const c = parseInt(count.value) || 1;
             riderSelections[check.dataset.rider] = c;
             option.classList.add('selected');
           } else {
-            count.disabled = true;
+            setEnabled(false);
             delete riderSelections[check.dataset.rider];
             option.classList.remove('selected');
           }
@@ -745,6 +775,24 @@
           if (check.checked) {
             riderSelections[check.dataset.rider] = v;
           }
+          updateTotalQuantityFromSelections();
+        });
+
+        minusBtn.addEventListener('click', () => {
+          if (!check.checked) return;
+          let v = parseInt(count.value) || 1;
+          v = Math.max(1, v - 1);
+          count.value = v;
+          riderSelections[check.dataset.rider] = v;
+          updateTotalQuantityFromSelections();
+        });
+
+        plusBtn.addEventListener('click', () => {
+          if (!check.checked) return;
+          let v = parseInt(count.value) || 1;
+          v = Math.min(99, v + 1);
+          count.value = v;
+          riderSelections[check.dataset.rider] = v;
           updateTotalQuantityFromSelections();
         });
       });
