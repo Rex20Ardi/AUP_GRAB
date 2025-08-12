@@ -1170,6 +1170,11 @@
         })
         .catch(err => console.warn('fetchMessages error', err));
     }
+    // Restore current order on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      try { restoreOrderFromStorage(); } catch (e) { console.warn('restoreOrderFromStorage failed', e); }
+    });
+
     // Info modal handlers moved to shared file
 
     // Back navigation
