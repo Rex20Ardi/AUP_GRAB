@@ -445,6 +445,11 @@
 
     /* Mobile adjustments for rider info (small phones) */
     @media (max-width: 420px) {
+      /* Prevent header title overlap with back/info buttons */
+      .header { padding-left: 64px; padding-right: 64px; }
+      .back-btn { left: 12px; padding: 8px 12px; font-size: 14px; }
+      .info-btn { right: 12px; }
+      .header h1 { font-size: 1.4rem; }
       .rider-info .rider-grid { grid-template-columns: 56px 1fr; gap: 12px; }
       .rider-info .avatar { width: 56px; height: 56px; font-size: 1rem; }
       .rider-details { font-size: 0.95rem; word-break: break-word; }
