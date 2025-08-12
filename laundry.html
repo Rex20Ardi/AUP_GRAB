@@ -218,6 +218,27 @@
       transition: all 0.3s;
       margin-top: 20px;
     }
+
+    /* Enhanced rider card UI (uniform across pages) */
+    .rider-info .rider-grid { display: grid; grid-template-columns: 72px 1fr; gap: 16px; align-items: center; text-align: left; }
+    .rider-info .avatar { width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-weight: 800; font-size: 1.25rem; box-shadow: inset 0 2px 8px rgba(0,0,0,0.25); }
+    .rider-info .name-row { display:flex; align-items:center; gap:10px; margin-bottom: 6px; }
+    .rider-info .pill { display:inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.18); font-size: 0.8rem; font-weight: 700; letter-spacing: .3px; }
+    .rider-info .rider-actions { margin-top: 12px; display:flex; gap:10px; flex-wrap: wrap; }
+    .contact-btn { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 10px 14px; border-radius: 10px; font-weight: 700; text-decoration: none; transition: all .2s; }
+    .contact-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
+    .progress { margin-top: 12px; }
+    .progress-track { width: 100%; height: 8px; background: rgba(255,255,255,0.25); border-radius: 999px; overflow:hidden; }
+    .progress-fill { height: 100%; width: 35%; background: linear-gradient(90deg, #7c4dff, #18ffff); border-radius: 999px; box-shadow: 0 0 10px rgba(24,255,255,0.5); transition: width .3s ease; }
+
+    /* Mobile adjustments for rider info */
+    @media (max-width: 420px) {
+      .rider-info .rider-grid { grid-template-columns: 56px 1fr; gap: 12px; }
+      .rider-info .avatar { width: 56px; height: 56px; font-size: 1rem; }
+      .rider-details { font-size: 0.95rem; word-break: break-word; }
+      .rider-info .rider-actions { flex-direction: column; gap: 8px; }
+      .rider-info .rider-actions .contact-btn { width: 100%; text-align: center; }
+    }
     
     .submit-btn:hover {
       transform: translateY(-2px);
@@ -655,7 +676,7 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 1 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 1 2.81.7A2 2 0 0 1 22 16.92z"/>
                 </svg>
-                <a class="contact-btn" href="tel:${booking.rider_phone}">Call ${booking.rider_phone}</a>
+                <span>${booking.rider_phone}</span>
               </div>
               <div class="rider-details">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
