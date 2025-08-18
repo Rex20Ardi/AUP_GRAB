@@ -669,6 +669,8 @@
     <div class="status-section" id="statusSection">
       <div class="success-message" id="successMessage"></div>
       <div class="order-id-display" id="orderIdDisplay"></div>
+      <!-- Booking summary -->
+      <div id="bookingSummary" style="margin-bottom:18px; display:none;"></div>
       <div class="rider-status" id="riderStatus">
         <span class="status-indicator status-waiting"></span>
         Looking for available rider...
@@ -899,12 +901,22 @@
       errorElement.style.display = 'block';
     }
     
+    let lastBookingDetails = null;
+
     function handleSubmit(e) {
       e.preventDefault();
+      if (!validateForm()) return;
       
-      if (!validateForm()) {
-        return;
-      }
+      lastBookingDetails = {
+        customerName: document.getElementById('customerName').value.trim(),
+        customerPhone: document.getElementById('customerPhone').value.trim(),
+        riderSelections: Object.assign({}, riderSelections),
+        quantity: parseInt(document.getElementById('quantity').value),
+        paymentStatus: document.getElementById('paymentStatus').value,
+        paymentCost: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? parseFloat(document.getElementById('paymentCost').value) : 0,
+        deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
+        notes: document.getElementById('notes').value.trim()
+      };
       
       // Build rider breakdown and ensure total quantity is sum of selections
       const selectedNames = Object.keys(riderSelections);
@@ -964,8 +976,10 @@
           `;
           
           document.getElementById('statusSection').style.display = 'block';
-          // Persist order locally
-          saveOrderState({ orderId: currentOrderId, status: 'pending' });
+          // Save full booking details for summary
+          saveOrderState({ orderId: currentOrderId, status: 'pending', booking: lastBookingDetails });
+          showBookingSummary(lastBookingDetails);
+          showCancelButton();
           
           // Start checking for rider assignment
           startRiderCheck();
@@ -985,7 +999,67 @@
         submitBtn.textContent = 'Submit Parcel Booking';
       });
     }
-    
+
+    // Show booking summary in status section
+    function showBookingSummary(details) {
+      if (!details) return;
+      const el = document.getElementById('bookingSummary');
+      el.style.display = 'block';
+      el.innerHTML = `
+        <div style="background:#f8f9fa; border-radius:10px; padding:14px 18px; border:1px solid #e1e1e1;">
+          <div><strong>Name:</strong> ${details.customerName}</div>
+          <div><strong>Phone:</strong> ${details.customerPhone}</div>
+          <div><strong>Rider(s):</strong> ${Object.entries(details.riderSelections).map(([k,v])=>`${k} (${v})`).join(', ')}</div>
+          <div><strong>Quantity:</strong> ${details.quantity}</div>
+          <div><strong>Payment:</strong> ${details.paymentStatus}${details.paymentStatus==='Not Yet Paid'?` (₱${details.paymentCost})`:''}</div>
+          <div><strong>Delivery:</strong> ${details.deliveryLocation}</div>
+          ${details.notes ? `<div><strong>Notes:</strong> ${details.notes}</div>` : ''}
+        </div>
+      `;
+    }
+
+    // Show cancel button if pending
+    function showCancelButton() {
+      const actions = document.getElementById('orderActions');
+      actions.style.display = 'block';
+      actions.innerHTML = `
+        <button class="confirm-btn" style="background:linear-gradient(135deg,#dc3545,#b71c1c);" onclick="cancelBooking()">Cancel Booking</button>
+      `;
+    }
+
+    // Cancel booking logic
+    function cancelBooking() {
+      if (!currentOrderId) return;
+      if (!confirm('Are you sure you want to cancel this booking?')) return;
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'cancel_booking', order_id: currentOrderId })
+      })
+      .then(r => r.json())
+      .then(data => {
+        localStorage.removeItem(STORAGE_KEY);
+        stopIntervals();
+        document.getElementById('completedMessage').innerHTML = `
+          <div class="completed-message">
+            <h3>Booking Cancelled</h3>
+            <p>Your booking has been cancelled.</p>
+            <div style="margin-top:16px;">
+              <button class="confirm-btn" onclick="placeNewOrder()">Place New Booking</button>
+            </div>
+          </div>
+        `;
+        document.getElementById('orderActions').style.display = 'none';
+        document.getElementById('bookingSummary').style.display = 'none';
+      })
+      .catch(()=>alert('Error cancelling booking. Please try again.'));
+    }
+
+    // Prevent duplicate booking: hide form if booking exists
+    function disableForm() {
+      document.getElementById('parcelForm').style.display = 'none';
+    }
+
     function startRiderCheck() {
       stopIntervals();
       checkInterval = setInterval(() => {
@@ -1166,11 +1240,16 @@
     
     function saveOrderState(state) {
       try {
-        const toSave = { orderId: state.orderId || currentOrderId, status: state.status };
+        // Save booking details as well for summary restore
+        const toSave = { 
+          orderId: state.orderId || currentOrderId, 
+          status: state.status, 
+          booking: state.booking || lastBookingDetails 
+        };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
       } catch {}
     }
-    
+
     function restoreFromStorage() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -1183,14 +1262,22 @@
           <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
           <div class="order-id">${currentOrderId}</div>
         `;
+        // Restore booking summary if available
+        if (saved.booking) {
+          lastBookingDetails = saved.booking;
+          showBookingSummary(saved.booking);
+        }
+        disableForm();
         if (saved.status === 'assigned') {
-          // fetch latest to populate rider info and continue messages
           fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
             .then(r => r.json())
             .then(d => { if (d.success && d.booking) assignRider(d.booking); else startRiderCheck(); })
             .catch(() => startRiderCheck());
         } else if (saved.status === 'delivered') {
           showCompletedReceipt();
+        } else if (saved.status === 'pending') {
+          showCancelButton();
+          startRiderCheck();
         } else {
           startRiderCheck();
         }
