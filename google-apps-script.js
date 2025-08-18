@@ -83,6 +83,8 @@ function doPost(e) {
         return completeBookingCompat(data); // frontend compatibility
       case 'send_message':
         return sendMessage(data);
+      case 'cancel_booking':
+        return cancelBookingCompat(data);
       default:
         return createResponse(false, 'Invalid action');
     }
@@ -192,6 +194,20 @@ function submitBookingCompat(data) {
   try {
     const type = (data.type || 'food').toLowerCase();
     const bookingSheetName = BOOKING_SHEETS[type] || BOOKING_SHEETS.food;
+    // --- DO NOT block booking if there is a pending order in another service ---
+    // Only check for duplicate pending order in the same sheet/type if you want to block duplicates per type:
+    /*
+    const sheet = getOrCreateSheet(bookingSheetName);
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][1] === data.sessionId && rows[i][9] === 'pending') {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          message: 'You already have a pending order awaiting rider assignment for this service.'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+    */
     const isLaundry = type === 'laundry';
     const isFood = type === 'food';
     const isParcel = type === 'parcel';
@@ -331,6 +347,8 @@ function getAllBookingsUnified(type) {
       const r = rows[i];
       if (!r[0]) continue;
       const statusMapped = mapStatusForFrontend(r[9], r[14]);
+      // Only include non-cancelled bookings in dashboard
+      if (statusMapped === 'cancelled') continue;
       // Build booking_details with type-specific mapping
       let bookingDetails = {
         itemIdentity: r[4] || '',
@@ -482,6 +500,7 @@ function getDeliveryStatusByOrderId(orderId) {
  * Map internal status to frontend status keywords
  */
 function mapStatusForFrontend(status, deliveryStatus) {
+  if (deliveryStatus === 'cancelled' || status === 'cancelled') return 'cancelled';
   if (deliveryStatus === 'delivered' || status === 'delivered') return 'delivered';
   if (deliveryStatus === 'on_the_way') return 'picked_up';
   if (deliveryStatus === 'rider_assigned' || status === 'confirmed') return 'assigned';
@@ -652,59 +671,38 @@ function getOrderStatus(sessionId) {
 }
 
 /**
- * Assign a rider to an order
+ * Cancel booking across booking sheets (removes from dashboard)
  */
-// (legacy assignRider removed; unified assignRider is defined above)
-
-function updateDeliveryStatus(data) {
+function cancelBookingCompat(data) {
   try {
-    const orderId = data.orderId || data.order_id;
+    const orderId = data.order_id || data.orderId;
+    if (!orderId) {
+      return createResponse(false, 'Missing order_id');
+    }
     const found = findOrderRow(orderId);
-    if (!found) return createResponse(false, 'Order not found');
+    if (!found) {
+      return createResponse(false, 'Order not found: ' + orderId);
+    }
     const sheet = found.sheet;
-    const rowIndex = found.index;
-    sheet.getRange(rowIndex, 15).setValue(data.deliveryStatus);
-    updateDeliveryTracking(orderId, data.deliveryStatus, {
-      riderLocation: data.riderLocation,
-      estimatedArrival: data.estimatedArrival,
-      notes: data.notes
-    });
-    return createResponse(true, 'Delivery status updated', {
-      deliveryStatus: data.deliveryStatus,
-      lastUpdated: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error updating delivery status:', error);
-    return createResponse(false, 'Failed to update delivery status: ' + error.message);
-  }
-}
+    const rowIndex = found.index; // 1-based index
 
-/**
- * Confirm delivery completion
- */
-function confirmDelivery(data) {
-  try {
-    const orderId = data.orderId || data.order_id;
-    const found = findOrderRow(orderId);
-    if (!found) return createResponse(false, 'Order not found');
-    const sheet = found.sheet;
-    const rowIndex = found.index;
-    const deliveryTime = new Date();
-    sheet.getRange(rowIndex, 10).setValue('delivered'); // status
-    sheet.getRange(rowIndex, 15).setValue('delivered'); // deliveryStatus
-    updateDeliveryTracking(orderId, 'delivered', {
-      deliveryTime: deliveryTime,
-      customerRating: data.rating,
-      feedback: data.feedback
-    });
-    return createResponse(true, 'Delivery confirmed successfully', {
-      deliveryStatus: 'delivered',
-      deliveryTime: deliveryTime,
-      orderId: orderId
-    });
+    // Mark as cancelled in status columns (do not delete row for audit/history)
+    // Status col 10, DeliveryStatus col 15
+    if (sheet.getLastColumn() < 15) {
+      sheet.insertColumnsAfter(sheet.getLastColumn(), 15 - sheet.getLastColumn());
+    }
+    sheet.getRange(rowIndex, 10).setValue('cancelled');
+    sheet.getRange(rowIndex, 15).setValue('cancelled');
+
+    // Optionally, update Deliveries sheet if exists
+    try {
+      updateDeliveryTracking(orderId, 'cancelled', { cancelledTime: new Date() });
+    } catch (e) {}
+
+    return createResponse(true, 'Booking cancelled and removed from dashboard', { orderId, status: 'cancelled' });
   } catch (error) {
-    console.error('Error confirming delivery:', error);
-    return createResponse(false, 'Failed to confirm delivery: ' + error.message);
+    console.error('Error in cancelBookingCompat:', error);
+    return createResponse(false, 'Failed to cancel booking: ' + error.message);
   }
 }
 
