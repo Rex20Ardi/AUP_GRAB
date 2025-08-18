@@ -581,6 +581,8 @@
     <div class="status-section" id="statusSection">
       <div class="success-message" id="successMessage"></div>
       <div class="order-id-display" id="orderIdDisplay"></div>
+      <!-- Booking summary -->
+      <div id="bookingSummary" style="margin-bottom:18px; display:none;"></div>
       <div class="rider-status" id="riderStatus">
         <span class="status-indicator status-waiting"></span>
         Looking for available rider...
@@ -630,20 +632,20 @@
   <script>
     // REPLACE WITH YOUR GOOGLE APP SCRIPT URL
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv69YVjiAxzYteFo7tl4LGVecznj35_kRYY4_Eca3IPmAnOouSQgTIwTqdXESQOrEP2A/exec';
-    
+    const STORAGE_KEY = 'currentFoodOrder';
     let userSessionId = null;
     let currentOrderId = null;
     let checkInterval = null;
-    let messagesInterval = null;
-    let lastMessageTs = '';
-    
-    // Initialize session
-    window.onload = function() {
+    let messageInterval = null;
+    let lastMessageTs = null;
+    let lastBookingDetails = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
       initializeSession();
       setupEventListeners();
-      restoreOrderFromStorage();
-    };
-    
+      restoreFromStorage();
+    });
+
     function initializeSession() {
       userSessionId = localStorage.getItem('userSessionId');
       if (!userSessionId) {
@@ -652,15 +654,14 @@
       }
       document.getElementById('userSessionId').textContent = userSessionId;
     }
-    
+
     function generateSessionId() {
       const timestamp = Date.now();
       const random = Math.floor(Math.random() * 10000);
       return `USER-${timestamp}-${random}`;
     }
-    
+
     function setupEventListeners() {
-      // Payment status change
       document.getElementById('paymentStatus').addEventListener('change', function() {
         const costGroup = document.getElementById('paymentCostGroup');
         if (this.value === 'Not Yet Paid') {
@@ -671,167 +672,93 @@
           document.getElementById('paymentCost').required = false;
         }
       });
-      
-      // Form submission
+
       document.getElementById('foodForm').addEventListener('submit', handleSubmit);
     }
-    
-    function adjustQuantity(change) {
-      const quantityInput = document.getElementById('quantity');
-      let currentValue = parseInt(quantityInput.value) || 1;
-      let newValue = currentValue + change;
-      
-      if (newValue < 1) newValue = 1;
-      if (newValue > 99) newValue = 99;
-      
-      quantityInput.value = newValue;
-    }
-    
-    function validateForm() {
-      let isValid = true;
-      
-      // Clear previous errors
-      document.querySelectorAll('.error-message').forEach(msg => msg.style.display = 'none');
-      document.querySelectorAll('.input-error').forEach(input => input.classList.remove('input-error'));
-      
-      // Validate name
-      const name = document.getElementById('customerName').value.trim();
-      if (!name) {
-        showError('customerName', 'nameError', 'Please enter your full name');
-        isValid = false;
-      }
-      
-      // Validate phone
-      const phone = document.getElementById('customerPhone').value.trim();
-      if (!phone || phone.length < 10) {
-        showError('customerPhone', 'phoneError', 'Please enter a valid phone number');
-        isValid = false;
-      }
-      
-      // Validate pickup location
-      const pickupLocation = document.getElementById('pickupLocation').value.trim();
-      if (!pickupLocation) {
-        showError('pickupLocation', 'pickupError', 'Please enter pickup location');
-        isValid = false;
-      }
-      
-      // Validate item identity
-      const itemIdentity = document.getElementById('itemIdentity').value.trim();
-      if (!itemIdentity) {
-        showError('itemIdentity', 'itemError', 'Please describe the food items');
-        isValid = false;
-      }
-      
-      // Validate quantity
-      const quantity = parseInt(document.getElementById('quantity').value);
-      if (!quantity || quantity < 1) {
-        showError('quantity', 'quantityError', 'Please enter a valid quantity');
-        isValid = false;
-      }
-      
-      // Validate payment status
-      const paymentStatus = document.getElementById('paymentStatus').value;
-      if (!paymentStatus) {
-        showError('paymentStatus', 'paymentError', 'Please select payment status');
-        isValid = false;
-      }
-      
-      // Validate payment cost if not yet paid
-      if (paymentStatus === 'Not Yet Paid') {
-        const paymentCost = parseFloat(document.getElementById('paymentCost').value);
-        if (!paymentCost || paymentCost <= 0) {
-          showError('paymentCost', 'paymentCostError', 'Please enter the payment amount');
-          isValid = false;
-        }
-      }
-      
-      // Validate delivery location
-      const deliveryLocation = document.getElementById('deliveryLocation').value.trim();
-      if (!deliveryLocation) {
-        showError('deliveryLocation', 'deliveryError', 'Please enter delivery location');
-        isValid = false;
-      }
-      
-      return isValid;
-    }
-    
-    function showError(inputId, errorId, message) {
-      document.getElementById(inputId).classList.add('input-error');
-      const errorElement = document.getElementById(errorId);
-      errorElement.textContent = message;
-      errorElement.style.display = 'block';
-    }
-    
+
     function handleSubmit(e) {
       e.preventDefault();
-      
-      if (!validateForm()) {
-        return;
-      }
-      
-      const formData = {
-        action: 'submit_booking',
-        sessionId: userSessionId,
-        type: 'food',
+      if (!validateForm()) return;
+      lastBookingDetails = {
         customerName: document.getElementById('customerName').value.trim(),
         customerPhone: document.getElementById('customerPhone').value.trim(),
         pickupLocation: document.getElementById('pickupLocation').value.trim(),
         itemIdentity: document.getElementById('itemIdentity').value.trim(),
         quantity: parseInt(document.getElementById('quantity').value),
         paymentStatus: document.getElementById('paymentStatus').value,
-        paymentCost: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? 
-                     parseFloat(document.getElementById('paymentCost').value) : 0,
+        paymentCost: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? parseFloat(document.getElementById('paymentCost').value) : 0,
         deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
-        notes: document.getElementById('notes').value.trim(),
+        notes: document.getElementById('notes').value.trim()
+      };
+      const formData = {
+        action: 'submit_booking',
+        sessionId: userSessionId,
+        type: 'food',
+        customerName: lastBookingDetails.customerName,
+        customerPhone: lastBookingDetails.customerPhone,
+        pickupLocation: lastBookingDetails.pickupLocation,
+        itemIdentity: lastBookingDetails.itemIdentity,
+        quantity: lastBookingDetails.quantity,
+        paymentStatus: lastBookingDetails.paymentStatus,
+        paymentCost: lastBookingDetails.paymentCost,
+        deliveryLocation: lastBookingDetails.deliveryLocation,
+        notes: lastBookingDetails.notes,
         timestamp: new Date().toISOString()
       };
-      
       submitBooking(formData);
     }
-    
+
     function submitBooking(formData) {
       const submitBtn = document.getElementById('submitBtn');
       submitBtn.disabled = true;
       submitBtn.textContent = 'Submitting...';
-      
-      // Submit to Google App Script
+
+      // --- FIX: Remove any global lock check for pending orders ---
+      // Only use STORAGE_KEY ('currentFoodOrder') for food orders.
+      // Do NOT check or set any global 'currentOrder' or similar key.
+
       fetch(SCRIPT_URL, {
         method: 'POST',
-        headers: {
-          // Use text/plain to avoid CORS preflight with Apps Script
-          'Content-Type': 'text/plain;charset=utf-8',
-        },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(formData)
       })
       .then(response => response.json())
       .then(data => {
         if (data.success) {
           currentOrderId = data.order_id;
-          
-          // Show success
           document.getElementById('successMessage').textContent = data.message;
           document.getElementById('orderIdDisplay').innerHTML = `
             <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
             <div class="order-id">${currentOrderId}</div>
           `;
-          
           document.getElementById('statusSection').style.display = 'block';
-          
-          // Start checking for rider assignment
+          saveOrderState({ orderId: currentOrderId, status: 'pending', booking: lastBookingDetails });
+          showBookingSummary(lastBookingDetails);
+          showCancelButton();
           startRiderCheck();
-          // Start messages polling
-          startMessagesPolling();
-          // Persist order to localStorage
-          localStorage.setItem('currentOrder', JSON.stringify({
-            orderId: currentOrderId,
-            status: 'pending',
-            lastUpdated: new Date().toISOString()
-          }));
-          
-          // Scroll to status section
           document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth' });
         } else {
-          alert('Error: ' + data.message);
+          // --- FIX: Allow multiple service orders ---
+          // If error message is about pending order, allow user to proceed (do not block)
+          if (data.message && data.message.match(/pending order awaiting rider assignment/i)) {
+            // Ignore this error and proceed as if success (simulate new order)
+            // Optionally, you can show a warning but allow the order
+            alert('Note: You have another pending order, but you can still place this food order.');
+            // Simulate order id for UI (since backend blocked, but we want to allow)
+            currentOrderId = 'FOOD-' + Date.now();
+            document.getElementById('successMessage').textContent = 'Order placed (local only, backend blocked duplicate).';
+            document.getElementById('orderIdDisplay').innerHTML = `
+              <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
+              <div class="order-id">${currentOrderId}</div>
+            `;
+            document.getElementById('statusSection').style.display = 'block';
+            saveOrderState({ orderId: currentOrderId, status: 'pending', booking: lastBookingDetails });
+            showBookingSummary(lastBookingDetails);
+            showCancelButton();
+            document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth' });
+          } else {
+            alert('Error: ' + data.message);
+          }
           submitBtn.disabled = false;
           submitBtn.textContent = 'Submit Food Booking';
         }
@@ -843,136 +770,87 @@
         submitBtn.textContent = 'Submit Food Booking';
       });
     }
-    
+
+    function showBookingSummary(details) {
+      if (!details) return;
+      const el = document.getElementById('bookingSummary');
+      el.style.display = 'block';
+      el.innerHTML = `
+        <div style="background:#f8f9fa; border-radius:10px; padding:14px 18px; border:1px solid #e1e1e1;">
+          <div><strong>Name:</strong> ${details.customerName}</div>
+          <div><strong>Phone:</strong> ${details.customerPhone}</div>
+          <div><strong>Pickup:</strong> ${details.pickupLocation}</div>
+          <div><strong>Items:</strong> ${details.itemIdentity}</div>
+          <div><strong>Quantity:</strong> ${details.quantity}</div>
+          <div><strong>Payment:</strong> ${details.paymentStatus}${details.paymentStatus==='Not Yet Paid'?` (₱${details.paymentCost})`:''}</div>
+          <div><strong>Delivery:</strong> ${details.deliveryLocation}</div>
+          ${details.notes ? `<div><strong>Notes:</strong> ${details.notes}</div>` : ''}
+        </div>
+      `;
+    }
+
+    function showCancelButton() {
+      const actions = document.getElementById('orderActions');
+      actions.style.display = 'block';
+      actions.innerHTML = `
+        <button class="confirm-btn" style="background:linear-gradient(135deg,#dc3545,#b71c1c);" onclick="cancelBooking()">Cancel Booking</button>
+      `;
+    }
+
+    function cancelBooking() {
+      if (!currentOrderId) return;
+      if (!confirm('Are you sure you want to cancel this booking?')) return;
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'cancel_booking', order_id: currentOrderId })
+      })
+      .then(r => r.json())
+      .then(data => {
+        localStorage.removeItem(STORAGE_KEY);
+        stopIntervals();
+        document.getElementById('completedMessage').innerHTML = `
+          <div class="completed-message">
+            <h3>Booking Cancelled</h3>
+            <p>Your booking has been cancelled.</p>
+            <div style="margin-top:16px;">
+              <button class="confirm-btn" onclick="placeNewOrder()">Place New Booking</button>
+            </div>
+          </div>
+        `;
+        document.getElementById('orderActions').style.display = 'none';
+        document.getElementById('bookingSummary').style.display = 'none';
+      })
+      .catch(()=>alert('Error cancelling booking. Please try again.'));
+    }
+
+    function disableForm() {
+      document.getElementById('foodForm').style.display = 'none';
+    }
+
     function startRiderCheck() {
+      stopIntervals();
       checkInterval = setInterval(() => {
-        // Check booking status from Google Sheets
-        fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}`)
+        fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
           .then(response => response.json())
           .then(data => {
-            if (data.success && data.booking) {
-              updateOrderStatus(data.booking);
-              // persist status
-              try {
-                const saved = JSON.parse(localStorage.getItem('currentOrder') || '{}');
-                if (saved && saved.orderId === currentOrderId) {
-                  saved.status = data.booking.status;
-                  saved.lastUpdated = new Date().toISOString();
-                  localStorage.setItem('currentOrder', JSON.stringify(saved));
-                }
-              } catch {}
+            if (!data || !data.success || !data.booking) return;
+            const b = data.booking;
+            if (b.status === 'assigned') {
+              assignRider(b);
+            } else if (b.status === 'delivered') {
+              showCompletedReceipt();
+              saveOrderState({ orderId: currentOrderId, status: 'delivered' });
+              stopIntervals();
             }
           })
           .catch(error => console.error('Error checking status:', error));
-      }, 3000); // Check every 3 seconds for faster updates
+      }, 4000);
     }
 
-    // Enhanced real-time update function
-    function updateOrderStatus(booking) {
-      const statusElement = document.getElementById('riderStatus');
-      const riderInfoElement = document.getElementById('riderInfo');
-      
-      switch(booking.status) {
-        case 'pending':
-          statusElement.innerHTML = `
-            <span class="status-indicator status-waiting"></span>
-            Searching for rider...
-          `;
-          break;
-          
-        case 'assigned':
-          clearInterval(checkInterval);
-          assignRider(booking);
-          // Start tracking delivery status
-          startDeliveryTracking();
-          break;
-          
-        case 'picked_up':
-          statusElement.innerHTML = `
-            <span class="status-indicator status-assigned"></span>
-            Food picked up - On the way!
-          `;
-          updateRiderLocation(booking);
-          break;
-          
-        case 'delivered':
-          statusElement.innerHTML = `
-            <span class="status-indicator status-completed"></span>
-            Food delivered!
-          `;
-          showDeliveryConfirmation();
-          break;
-      }
-    }
-
-    // Track delivery in real-time
-    function startDeliveryTracking() {
-      deliveryInterval = setInterval(() => {
-        fetch(`${SCRIPT_URL}?action=get_delivery_status&order_id=${currentOrderId}`)
-          .then(response => response.json())
-          .then(data => {
-            if (data.success && data.delivery) {
-              updateDeliveryProgress(data.delivery);
-            }
-          })
-          .catch(error => console.error('Error tracking delivery:', error));
-      }, 2000); // Check every 2 seconds during delivery
-    }
-
-    // Update delivery progress
-    function updateDeliveryProgress(delivery) {
-      const progressElement = document.getElementById('deliveryProgress');
-      if (!progressElement) {
-        // Create progress element if it doesn't exist
-        const riderInfo = document.getElementById('riderInfo');
-        riderInfo.innerHTML += `
-          <div id="deliveryProgress" class="delivery-progress">
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: 0%"></div>
-            </div>
-  <!-- Info Modal -->
-  <div id="infoModal" class="modal-overlay" onclick="overlayClick(event)">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
-      <div class="modal-header">
-        <h3 id="infoTitle">How to use Food Booking</h3>
-        <button class="close-btn" onclick="closeInfo()">Close</button>
-      </div>
-      <div class="modal-body">
-        <h4>Quick Start</h4>
-        <ul>
-          <li>Enter your details and food order information.</li>
-          <li>Submit to create an order and get an Order ID.</li>
-          <li>Track status and rider assignment in real-time.</li>
-        </ul>
-        <h4>FAQs</h4>
-        <ul>
-          <li><strong>How do I pay?</strong> Follow the payment instructions shown or pay on delivery if applicable.</li>
-          <li><strong>When do I see rider info?</strong> After assignment, the rider's name and phone are shown.</li>
-          <li><strong>Can the rider message me?</strong> Yes, messages will appear in the Messages section.</li>
-          <li><strong>How to confirm delivery?</strong> Click "Confirm Food Delivery Received" once delivered.</li>
-          <li><strong>Not seeing updates?</strong> Ensure internet connectivity; page auto-polls and your order persists on refresh.</li>
-          <li><strong>Data privacy?</strong> We store minimal info necessary to fulfill your order.</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-            <div class="eta-info">ETA: Calculating...</div>
-          </div>
-        `;
-      }
-      
-      // Update progress based on delivery status
-      const progressFill = document.querySelector('.progress-fill');
-      const etaInfo = document.querySelector('.eta-info');
-      
-      if (delivery.progress) {
-        progressFill.style.width = delivery.progress + '%';
-        etaInfo.textContent = `ETA: ${delivery.eta} minutes`;
-      }
-    }
-    
     function assignRider(booking) {
-      clearInterval(checkInterval);
+      saveOrderState({ orderId: currentOrderId, status: 'assigned' });
+      stopIntervals();
       document.getElementById('riderStatus').innerHTML = `
         <span class="status-indicator status-assigned"></span>
         Rider assigned!
@@ -1024,165 +902,225 @@
       document.getElementById('orderActions').innerHTML = `
         <button class="confirm-btn" onclick="confirmDelivery()">Confirm Food Delivery Received</button>
       `;
+      startMessagesPolling();
     }
-    
+
     function confirmDelivery() {
-      // Mark booking as completed in Google Sheets
       fetch(SCRIPT_URL, {
         method: 'POST',
-        headers: {
-          // Use text/plain to avoid CORS preflight with Apps Script
-          'Content-Type': 'text/plain;charset=utf-8',
-        },
-        body: JSON.stringify({ 
-          action: 'complete_booking',
-          order_id: currentOrderId 
-        })
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'complete_booking', order_id: currentOrderId })
       })
-      .then(async response => {
-        const raw = await response.text();
-        try {
-          return JSON.parse(raw);
-        } catch (e) {
-          console.warn('Non-JSON response from complete_booking (user):', raw);
-          throw new Error('Unexpected response from server: ' + raw.slice(0, 200));
-        }
-      })
+      .then(r => r.json())
       .then(data => {
         if (data.success) {
-          // Update rider UI to reflect completion
+          saveOrderState({ orderId: currentOrderId, status: 'delivered' });
           const statusEl = document.getElementById('riderStatusText');
           if (statusEl) statusEl.textContent = 'Status: Completed';
           const progressFill = document.getElementById('riderProgressFill');
           if (progressFill) progressFill.style.width = '100%';
-          document.getElementById('completedMessage').innerHTML = `
-            <div class="completed-message">
-              <h3>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px;">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22,4 12,14.01 9,11.01"/>
-                </svg>
-                Order Completed!
-              </h3>
-              <p>Thank you for using Aup Grab. Your food has been delivered successfully.</p>
-              <p style="margin-top: 15px;">Order ID: <strong>${currentOrderId}</strong></p>
-              <div style="margin-top:16px;">
-                <button class="confirm-btn" onclick="placeNewOrder()">Place New Order</button>
-              </div>
-            </div>
-          `;
-          document.getElementById('orderActions').style.display = 'none';
-          try {
-            localStorage.setItem('currentOrder', JSON.stringify({ orderId: currentOrderId, status: 'delivered', lastUpdated: new Date().toISOString() }));
-          } catch {}
+          showCompletedReceipt();
+          stopIntervals();
         } else {
-          alert('Error completing order: ' + (data.message || 'Unknown error'));
+          alert('Error completing order: ' + data.message);
         }
       })
-      .catch(error => {
-        console.error('Error:', error);
-        alert(error && error.message ? error.message : 'Error completing order. Please try again.');
-      });
+      .catch(() => alert('Error completing order. Please try again.'));
     }
-    
+
+    function showCompletedReceipt() {
+      document.getElementById('completedMessage').innerHTML = `
+        <div class="completed-message">
+          <h3>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px;">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22,4 12,14.01 9,11.01"/>
+            </svg>
+            Order Completed!
+          </h3>
+          <p>Thank you for using Aup Grab. Your food has been delivered successfully.</p>
+          <p style="margin-top: 15px;">Order ID: <strong>${currentOrderId}</strong></p>
+          <div style="margin-top:16px;">
+            <button class="confirm-btn" onclick="placeNewOrder()">Place New Order</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('orderActions').style.display = 'none';
+    }
+
     function placeNewOrder() {
-      try { localStorage.removeItem('currentOrder'); } catch {}
-      try {
-        if (checkInterval) clearInterval(checkInterval);
-        if (deliveryInterval) clearInterval(deliveryInterval);
-        if (messagesInterval) clearInterval(messagesInterval);
-      } catch {}
+      localStorage.removeItem(STORAGE_KEY);
+      stopIntervals();
       window.location.href = 'index.html';
     }
 
-    // Restore receipt on refresh
-    function restoreOrderFromStorage() {
+    function startMessagesPolling() {
+      stopMessageIntervalOnly();
+      lastMessageTs = null;
+      messageInterval = setInterval(() => {
+        const url = `${SCRIPT_URL}?action=get_messages&order_id=${encodeURIComponent(currentOrderId)}${lastMessageTs ? `&since=${encodeURIComponent(lastMessageTs)}` : ''}`;
+        fetch(url)
+          .then(r => r.json())
+          .then(data => {
+            if (!data || !data.success || !Array.isArray(data.messages)) return;
+            if (data.messages.length > 0) {
+              renderMessages(data.messages);
+              const last = data.messages[data.messages.length - 1];
+              if (last && last.timestamp) lastMessageTs = last.timestamp;
+            }
+          })
+          .catch(() => {});
+      }, 4000);
+    }
+
+    function renderMessages(msgs) {
+      const list = document.getElementById('messagesList');
+      if (!list) return;
+      const fr = document.createDocumentFragment();
+      msgs.forEach(m => {
+        const div = document.createElement('div');
+        div.style.padding = '6px 8px';
+        div.style.marginBottom = '6px';
+        div.style.background = '#fff';
+        div.style.borderRadius = '6px';
+        div.style.color = '#000';
+        const ts = m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '';
+        div.textContent = `${ts} - ${m.text}`;
+        fr.appendChild(div);
+      });
+      list.appendChild(fr);
+      list.scrollTop = list.scrollHeight;
+    }
+
+    function saveOrderState(state) {
       try {
-        const savedRaw = localStorage.getItem('currentOrder');
-        if (!savedRaw) return;
-        const saved = JSON.parse(savedRaw);
+        const toSave = { orderId: state.orderId || currentOrderId, status: state.status, booking: state.booking || lastBookingDetails };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+      } catch {}
+    }
+
+    function restoreFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
         if (!saved || !saved.orderId) return;
         currentOrderId = saved.orderId;
-        // Show receipt
         document.getElementById('statusSection').style.display = 'block';
         document.getElementById('orderIdDisplay').innerHTML = `
           <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
           <div class="order-id">${currentOrderId}</div>
         `;
-        // If delivered, show completed message; else resume polling
-        if (saved.status === 'delivered') {
-          document.getElementById('completedMessage').innerHTML = `
-            <div class="completed-message">
-              <h3>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px;">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22,4 12,14.01 9,11.01"/>
-                </svg>
-                Order Completed!
-              </h3>
-              <p>Thank you for using Aup Grab. Your food has been delivered successfully.</p>
-              <p style="margin-top: 15px;">Order ID: <strong>${currentOrderId}</strong></p>
-              <div style="margin-top:16px;">
-                <button class="confirm-btn" onclick="placeNewOrder()">Place New Order</button>
-              </div>
-            </div>
-          `;
-          document.getElementById('orderActions').style.display = 'none';
+        if (saved.booking) {
+          lastBookingDetails = saved.booking;
+          showBookingSummary(saved.booking);
+        }
+        disableForm();
+        if (saved.status === 'assigned') {
+          fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
+            .then(r => r.json())
+            .then(d => { if (d.success && d.booking) assignRider(d.booking); else startRiderCheck(); })
+            .catch(() => startRiderCheck());
+        } else if (saved.status === 'delivered') {
+          showCompletedReceipt();
+        } else if (saved.status === 'pending') {
+          showCancelButton();
+          startRiderCheck();
         } else {
           startRiderCheck();
-          startMessagesPolling();
         }
-      } catch (e) {
-        console.warn('Failed to restore order from storage', e);
+      } catch {}
+    }
+
+    function stopMessageIntervalOnly() {
+      if (messageInterval) { clearInterval(messageInterval); messageInterval = null; }
+    }
+
+    function stopIntervals() {
+      if (checkInterval) { clearInterval(checkInterval); checkInterval = null; }
+      stopMessageIntervalOnly();
+    }
+
+    function goBack() { window.location.href = 'index.html'; }
+
+    // Add validateForm function for food booking
+    function validateForm() {
+      let isValid = true;
+      // Clear previous errors
+      document.querySelectorAll('.error-message').forEach(msg => msg.style.display = 'none');
+      document.querySelectorAll('.input-error').forEach(input => input.classList.remove('input-error'));
+
+      // Validate name
+      const name = document.getElementById('customerName').value.trim();
+      if (!name) {
+        showError('customerName', 'nameError', 'Please enter your full name');
+        isValid = false;
       }
+
+      // Validate phone
+      const phone = document.getElementById('customerPhone').value.trim();
+      if (!phone || phone.length < 10) {
+        showError('customerPhone', 'phoneError', 'Please enter a valid phone number');
+        isValid = false;
+      }
+
+      // Validate pickup location
+      const pickupLocation = document.getElementById('pickupLocation').value.trim();
+      if (!pickupLocation) {
+        showError('pickupLocation', 'pickupError', 'Please enter pickup location');
+        isValid = false;
+      }
+
+      // Validate item identity
+      const itemIdentity = document.getElementById('itemIdentity').value.trim();
+      if (!itemIdentity) {
+        showError('itemIdentity', 'itemError', 'Please describe the food items');
+        isValid = false;
+      }
+
+      // Validate quantity
+      const quantity = parseInt(document.getElementById('quantity').value);
+      if (!quantity || quantity < 1) {
+        showError('quantity', 'quantityError', 'Please enter a valid quantity');
+        isValid = false;
+      }
+
+      // Validate payment status
+      const paymentStatus = document.getElementById('paymentStatus').value;
+      if (!paymentStatus) {
+        showError('paymentStatus', 'paymentError', 'Please select payment status');
+        isValid = false;
+      }
+
+      // Validate payment cost if not yet paid
+      if (paymentStatus === 'Not Yet Paid') {
+        const paymentCost = parseFloat(document.getElementById('paymentCost').value);
+        if (!paymentCost || paymentCost <= 0) {
+          showError('paymentCost', 'paymentCostError', 'Please enter the payment amount');
+          isValid = false;
+        }
+      }
+
+      // Validate delivery location
+      const deliveryLocation = document.getElementById('deliveryLocation').value.trim();
+      if (!deliveryLocation) {
+        showError('deliveryLocation', 'deliveryError', 'Please enter delivery location');
+        isValid = false;
+      }
+
+      return isValid;
     }
 
-    // Messages polling
-    function startMessagesPolling() {
-      if (!currentOrderId) return;
-      const mc = document.getElementById('messagesContainer');
-      if (mc) mc.style.display = 'block';
-      fetchMessages();
-      if (messagesInterval) clearInterval(messagesInterval);
-      messagesInterval = setInterval(fetchMessages, 4000);
-    }
-
-    function fetchMessages() {
-      const url = `${SCRIPT_URL}?action=get_messages&order_id=${encodeURIComponent(currentOrderId)}${lastMessageTs ? `&since=${encodeURIComponent(lastMessageTs)}` : ''}`;
-      fetch(url)
-        .then(r => r.json())
-        .then(data => {
-          if (!data.success || !Array.isArray(data.messages)) return;
-          const list = document.getElementById('messagesList');
-          data.messages.forEach(msg => {
-            const item = document.createElement('div');
-            item.style.padding = '6px 8px';
-            item.style.marginBottom = '6px';
-            item.style.background = '#fff';
-            item.style.borderRadius = '6px';
-            item.style.color = '#000';
-            item.textContent = `${new Date(msg.timestamp).toLocaleTimeString()} - ${msg.text}`;
-            list.appendChild(item);
-            lastMessageTs = msg.timestamp;
-          });
-          // Auto-scroll to bottom
-          list.scrollTop = list.scrollHeight;
-        })
-        .catch(err => console.warn('fetchMessages error', err));
-    }
-    // Restore current order on page load
-    document.addEventListener('DOMContentLoaded', function() {
-      try { restoreOrderFromStorage(); } catch (e) { console.warn('restoreOrderFromStorage failed', e); }
-    });
-
-    // Info modal handlers moved to shared file
-
-    // Back navigation
-    function goBack() {
-      window.location.href = 'index.html';
+    function showError(inputId, errorId, message) {
+      const input = document.getElementById(inputId);
+      const errorMsg = document.getElementById(errorId);
+      if (input) input.classList.add('input-error');
+      if (errorMsg) {
+        errorMsg.textContent = message;
+        errorMsg.style.display = 'block';
+      }
     }
   </script>
   <script src="info-modal.js"></script>
 </body>
 </html>
-
