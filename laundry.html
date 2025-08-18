@@ -472,6 +472,8 @@
     <div class="status-section" id="statusSection">
       <div class="success-message" id="successMessage"></div>
       <div class="order-id-display" id="orderIdDisplay"></div>
+      <!-- Booking summary -->
+      <div id="bookingSummary" style="margin-bottom:18px; display:none;"></div>
       <div class="rider-status" id="riderStatus">
         <span class="status-indicator status-waiting"></span>
         Looking for available rider...
@@ -511,19 +513,19 @@
   <script>
     // REPLACE WITH YOUR GOOGLE APP SCRIPT URL
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv69YVjiAxzYteFo7tl4LGVecznj35_kRYY4_Eca3IPmAnOouSQgTIwTqdXESQOrEP2A/exec';
-
     const STORAGE_KEY = 'currentLaundryOrder';
     let userSessionId = null;
     let currentOrderId = null;
     let checkInterval = null;
     let messageInterval = null;
     let lastMessageTs = null;
+    let lastBookingDetails = null;
 
-    window.onload = function() {
+    document.addEventListener('DOMContentLoaded', function() {
       initializeSession();
       setupEventListeners();
       restoreFromStorage();
-    };
+    });
 
     function initializeSession() {
       userSessionId = localStorage.getItem('userSessionId');
@@ -555,59 +557,31 @@
       document.getElementById('laundryForm').addEventListener('submit', handleSubmit);
     }
 
-    function validateForm() {
-      let isValid = true;
-      document.querySelectorAll('.error-message').forEach(msg => msg.style.display = 'none');
-      document.querySelectorAll('.input-error').forEach(input => input.classList.remove('input-error'));
-
-      const name = document.getElementById('customerName').value.trim();
-      if (!name) { showError('customerName', 'nameError', 'Please enter your full name'); isValid = false; }
-
-      const phone = document.getElementById('customerPhone').value.trim();
-      if (!phone || phone.length < 10) { showError('customerPhone', 'phoneError', 'Please enter a valid phone number'); isValid = false; }
-
-      const pickup = document.getElementById('pickupLocation').value.trim();
-      if (!pickup) { showError('pickupLocation', 'pickupError', 'Please enter pickup location'); isValid = false; }
-
-      const delivery = document.getElementById('deliveryLocation').value.trim();
-      if (!delivery) { showError('deliveryLocation', 'deliveryError', 'Please enter delivery location'); isValid = false; }
-
-      const basket = document.getElementById('basket').value.trim();
-      if (!basket) { showError('basket', 'basketError', 'Please enter laundry details'); isValid = false; }
-
-      const paymentStatus = document.getElementById('paymentStatus').value;
-      if (!paymentStatus) { showError('paymentStatus', 'paymentError', 'Please select payment status'); isValid = false; }
-
-      if (paymentStatus === 'Not Yet Paid') {
-        const paymentCost = parseFloat(document.getElementById('paymentCost').value);
-        if (!paymentCost || paymentCost <= 0) { showError('paymentCost', 'paymentCostError', 'Please enter the payment amount'); isValid = false; }
-      }
-      return isValid;
-    }
-
-    function showError(inputId, errorId, message) {
-      document.getElementById(inputId).classList.add('input-error');
-      const errorElement = document.getElementById(errorId);
-      errorElement.textContent = message;
-      errorElement.style.display = 'block';
-    }
-
     function handleSubmit(e) {
       e.preventDefault();
       if (!validateForm()) return;
-
-      const formData = {
-        action: 'submit_booking',
-        sessionId: userSessionId,
-        type: 'laundry',
+      lastBookingDetails = {
         customerName: document.getElementById('customerName').value.trim(),
         customerPhone: document.getElementById('customerPhone').value.trim(),
         pickupLocation: document.getElementById('pickupLocation').value.trim(),
         deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
-        basketName: document.getElementById('basket').value.trim(),
+        basket: document.getElementById('basket').value.trim(),
         paymentStatus: document.getElementById('paymentStatus').value,
         paymentCost: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? parseFloat(document.getElementById('paymentCost').value) : 0,
-        notes: document.getElementById('notes').value.trim(),
+        notes: document.getElementById('notes').value.trim()
+      };
+      const formData = {
+        action: 'submit_booking',
+        sessionId: userSessionId,
+        type: 'laundry',
+        customerName: lastBookingDetails.customerName,
+        customerPhone: lastBookingDetails.customerPhone,
+        pickupLocation: lastBookingDetails.pickupLocation,
+        deliveryLocation: lastBookingDetails.deliveryLocation,
+        basketName: lastBookingDetails.basket,
+        paymentStatus: lastBookingDetails.paymentStatus,
+        paymentCost: lastBookingDetails.paymentCost,
+        notes: lastBookingDetails.notes,
         timestamp: new Date().toISOString()
       };
       submitBooking(formData);
@@ -632,7 +606,9 @@
             <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
             <div class="order-id">${currentOrderId}</div>`;
           document.getElementById('statusSection').style.display = 'block';
-          saveOrderState({ orderId: currentOrderId, status: 'pending' });
+          saveOrderState({ orderId: currentOrderId, status: 'pending', booking: lastBookingDetails });
+          showBookingSummary(lastBookingDetails);
+          showCancelButton();
           startRiderCheck();
           document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth' });
         } else {
@@ -647,6 +623,62 @@
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit Laundry Booking';
       });
+    }
+
+    function showBookingSummary(details) {
+      if (!details) return;
+      const el = document.getElementById('bookingSummary');
+      el.style.display = 'block';
+      el.innerHTML = `
+        <div style="background:#f8f9fa; border-radius:10px; padding:14px 18px; border:1px solid #e1e1e1;">
+          <div><strong>Name:</strong> ${details.customerName}</div>
+          <div><strong>Phone:</strong> ${details.customerPhone}</div>
+          <div><strong>Pickup:</strong> ${details.pickupLocation}</div>
+          <div><strong>Delivery:</strong> ${details.deliveryLocation}</div>
+          <div><strong>Laundry:</strong> ${details.basket}</div>
+          <div><strong>Payment:</strong> ${details.paymentStatus}${details.paymentStatus==='Not Yet Paid'?` (₱${details.paymentCost})`:''}</div>
+          ${details.notes ? `<div><strong>Notes:</strong> ${details.notes}</div>` : ''}
+        </div>
+      `;
+    }
+
+    function showCancelButton() {
+      const actions = document.getElementById('orderActions');
+      actions.style.display = 'block';
+      actions.innerHTML = `
+        <button class="confirm-btn" style="background:linear-gradient(135deg,#dc3545,#b71c1c);" onclick="cancelBooking()">Cancel Booking</button>
+      `;
+    }
+
+    function cancelBooking() {
+      if (!currentOrderId) return;
+      if (!confirm('Are you sure you want to cancel this booking?')) return;
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'cancel_booking', order_id: currentOrderId })
+      })
+      .then(r => r.json())
+      .then(data => {
+        localStorage.removeItem(STORAGE_KEY);
+        stopIntervals();
+        document.getElementById('completedMessage').innerHTML = `
+          <div class="completed-message">
+            <h3>Booking Cancelled</h3>
+            <p>Your booking has been cancelled.</p>
+            <div style="margin-top:16px;">
+              <button class="confirm-btn" onclick="placeNewOrder()">Place New Booking</button>
+            </div>
+          </div>
+        `;
+        document.getElementById('orderActions').style.display = 'none';
+        document.getElementById('bookingSummary').style.display = 'none';
+      })
+      .catch(()=>alert('Error cancelling booking. Please try again.'));
+    }
+
+    function disableForm() {
+      document.getElementById('laundryForm').style.display = 'none';
     }
 
     function startRiderCheck() {
@@ -738,16 +770,10 @@
       .then(data => {
         if (data.success) {
           saveOrderState({ orderId: currentOrderId, status: 'delivered' });
-          // Update rider assignment status locally to reflect completion
           const statusEl = document.getElementById('riderStatusText');
-          if (statusEl) {
-            statusEl.textContent = 'Status: Completed';
-          }
-          // Fill the blue progress line to 100%
+          if (statusEl) statusEl.textContent = 'Status: Completed';
           const progressFill = document.getElementById('riderProgressFill');
-          if (progressFill) {
-            progressFill.style.width = '100%';
-          }
+          if (progressFill) progressFill.style.width = '100%';
           showCompletedReceipt();
           stopIntervals();
         } else {
@@ -772,7 +798,8 @@
           <div style="margin-top:16px;">
             <button class="confirm-btn" onclick="placeNewOrder()">Place New Order</button>
           </div>
-        </div>`;
+        </div>
+      `;
       document.getElementById('orderActions').style.display = 'none';
     }
 
@@ -822,7 +849,7 @@
 
     function saveOrderState(state) {
       try {
-        const toSave = { orderId: state.orderId || currentOrderId, status: state.status };
+        const toSave = { orderId: state.orderId || currentOrderId, status: state.status, booking: state.booking || lastBookingDetails };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
       } catch {}
     }
@@ -838,6 +865,11 @@
         document.getElementById('orderIdDisplay').innerHTML = `
           <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
           <div class="order-id">${currentOrderId}</div>`;
+        if (saved.booking) {
+          lastBookingDetails = saved.booking;
+          showBookingSummary(saved.booking);
+        }
+        disableForm();
         if (saved.status === 'assigned') {
           fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
             .then(r => r.json())
@@ -845,6 +877,9 @@
             .catch(() => startRiderCheck());
         } else if (saved.status === 'delivered') {
           showCompletedReceipt();
+        } else if (saved.status === 'pending') {
+          showCancelButton();
+          startRiderCheck();
         } else {
           startRiderCheck();
         }
@@ -866,6 +901,77 @@
     });
 
     function goBack() { window.location.href = 'index.html'; }
+
+    // Add validateForm function for laundry booking
+    function validateForm() {
+      let isValid = true;
+      // Clear previous errors
+      document.querySelectorAll('.error-message').forEach(msg => msg.style.display = 'none');
+      document.querySelectorAll('.input-error').forEach(input => input.classList.remove('input-error'));
+
+      // Validate name
+      const name = document.getElementById('customerName').value.trim();
+      if (!name) {
+        showError('customerName', 'nameError', 'Please enter your full name');
+        isValid = false;
+      }
+
+      // Validate phone
+      const phone = document.getElementById('customerPhone').value.trim();
+      if (!phone || phone.length < 10) {
+        showError('customerPhone', 'phoneError', 'Please enter a valid phone number');
+        isValid = false;
+      }
+
+      // Validate pickup location
+      const pickupLocation = document.getElementById('pickupLocation').value.trim();
+      if (!pickupLocation) {
+        showError('pickupLocation', 'pickupError', 'Please enter pickup location');
+        isValid = false;
+      }
+
+      // Validate delivery location
+      const deliveryLocation = document.getElementById('deliveryLocation').value.trim();
+      if (!deliveryLocation) {
+        showError('deliveryLocation', 'deliveryError', 'Please enter delivery location');
+        isValid = false;
+      }
+
+      // Validate basket
+      const basket = document.getElementById('basket').value.trim();
+      if (!basket) {
+        showError('basket', 'basketError', 'Please enter laundry details');
+        isValid = false;
+      }
+
+      // Validate payment status
+      const paymentStatus = document.getElementById('paymentStatus').value;
+      if (!paymentStatus) {
+        showError('paymentStatus', 'paymentError', 'Please select payment status');
+        isValid = false;
+      }
+
+      // Validate payment cost if not yet paid
+      if (paymentStatus === 'Not Yet Paid') {
+        const paymentCost = parseFloat(document.getElementById('paymentCost').value);
+        if (!paymentCost || paymentCost <= 0) {
+          showError('paymentCost', 'paymentCostError', 'Please enter the payment amount');
+          isValid = false;
+        }
+      }
+
+      return isValid;
+    }
+
+    function showError(inputId, errorId, message) {
+      const input = document.getElementById(inputId);
+      const error = document.getElementById(errorId);
+      if (input) input.classList.add('input-error');
+      if (error) {
+        error.textContent = message;
+        error.style.display = 'block';
+      }
+    }
   </script>
   <script src="info-modal.js"></script>
 </body>
