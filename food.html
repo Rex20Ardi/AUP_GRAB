@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Food Booking - Aup Grab</title>
   <link rel="stylesheet" href="info-modal.css">
+  <link rel="stylesheet" href="notifications.css">
+  <script src="notification-service.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -830,7 +832,10 @@
 
     function startRiderCheck() {
       stopIntervals();
+      let lastNotificationCheck = Date.now();
+      
       checkInterval = setInterval(() => {
+        // Check booking status
         fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
           .then(response => response.json())
           .then(data => {
@@ -845,6 +850,15 @@
             }
           })
           .catch(error => console.error('Error checking status:', error));
+        
+        // Check for notifications every 8 seconds
+        if (Date.now() - lastNotificationCheck > 8000) {
+          lastNotificationCheck = Date.now();
+          UserNotificationService.pollUserNotifications(SCRIPT_URL, userSessionId, lastNotificationCheck - 30000)
+            .then(notifications => {
+              UserNotificationService.showUserNotifications(notifications);
+            });
+        }
       }, 4000);
     }
 
@@ -1122,5 +1136,6 @@
     }
   </script>
   <script src="info-modal.js"></script>
+  <script src="notifications.js"></script>
 </body>
 </html>
