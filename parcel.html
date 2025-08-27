@@ -6,6 +6,7 @@
   <title>Parcel Booking - Aup Grab</title>
   <link rel="stylesheet" href="info-modal.css">
   <link rel="stylesheet" href="notifications.css">
+  <link rel="stylesheet" href="notification-banner.css">
   <script src="notification-service.js"></script>
   <style>
     * {
@@ -675,11 +676,19 @@
       <div id="bookingSummary" style="margin-bottom:18px; display:none;"></div>
       <div class="rider-status" id="riderStatus">
         <span class="status-indicator status-waiting"></span>
-        Wait until your rider is assigned ...
+        Looking for available rider...
       </div>
       <div id="riderInfo"></div>
       <div id="orderActions"></div>
       <div id="completedMessage"></div>
+    </div>
+  </div>
+
+  <div id="notification-banner">
+    <p>Do you want to receive booking updates when your rider is assigned?</p>
+    <div class="buttons">
+        <button id="notify-yes">Yes</button>
+        <button id="notify-no">No</button>
     </div>
   </div>
   
@@ -1073,12 +1082,12 @@
           .then(data => {
             if (!data || !data.success || !data.booking) return;
             const b = data.booking;
-            if (b.status === 'assigned') {
+            if (b.status === 'assigned' || b.status === 'claimed') {
               assignRider(b);
             } else if (b.status === 'delivered') {
               // backend may map to delivered; finalize
-              showCompletedReceipt();
-              saveOrderState({ orderId: currentOrderId, status: 'delivered' });
+              showCompletedReceipt(b);
+              saveOrderState({ orderId: currentOrderId, status: 'delivered', booking: b.booking_details });
               stopIntervals();
             }
           })
@@ -1131,7 +1140,7 @@
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                   <circle cx="12" cy="10" r="3"/>
                 </svg>
-                <span id="riderStatusText">Status: On the way to pickup</span>
+                <span id="riderStatusText">Status: ${booking.status === 'claimed' ? 'Item Claimed' : 'On the way to pickup'}</span>
               </div>
               <div class="progress">
                 <div class="progress-track"><div class="progress-fill" id="riderProgressFill" style="width:35%"></div></div>
@@ -1187,7 +1196,8 @@
       });
     }
     
-    function showCompletedReceipt() {
+    function showCompletedReceipt(booking) {
+      const deliveryLocation = booking && booking.booking_details ? booking.booking_details.deliveryLocation : 'the specified location';
       document.getElementById('completedMessage').innerHTML = `
         <div class="completed-message">
           <h3>
@@ -1197,7 +1207,7 @@
             </svg>
             Order Completed!
           </h3>
-          <p>Thank you for using Aup Grab. Your parcel has been delivered successfully.</p>
+          <p>Your parcel has been placed to ${deliveryLocation}.</p>
           <p style="margin-top: 15px;">Order ID: <strong>${currentOrderId}</strong></p>
           <div style="margin-top:16px;">
             <button class="confirm-btn" onclick="placeNewOrder()">Place New Order</button>
@@ -1287,8 +1297,8 @@
             .then(d => { if (d.success && d.booking) assignRider(d.booking); else startRiderCheck(); })
             .catch(() => startRiderCheck());
         } else if (saved.status === 'delivered') {
-          showCompletedReceipt();
-        } else if (saved.status === 'pending') {
+          showCompletedReceipt(saved);
+        } else if (saved.status === 'pending' || saved.status === 'claimed') {
           showCancelButton();
           startRiderCheck();
         } else {
@@ -1318,5 +1328,6 @@
   </script>
   <script src="info-modal.js"></script>
   <script src="notifications.js"></script>
-</body>
+  <script src="notification-banner.js"></script>
+ </body>
 </html>
