@@ -223,7 +223,7 @@
 
     /* Enhanced rider card UI (uniform across pages) */
     .rider-info .rider-grid { display: grid; grid-template-columns: 72px 1fr; gap: 16px; align-items: center; text-align: left; }
-    .rider-info .avatar { width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-weight: 800; font-size: 1.25rem; box-shadow: inset 0 2px 8px rgba(0,0,0,0.25); }
+    .rider-info .avatar { width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-weight: 800; font-size: 1.25rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.25); }
     .rider-info .name-row { display:flex; align-items:center; gap:10px; margin-bottom: 6px; }
     .rider-info .pill { display:inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.18); font-size: 0.8rem; font-weight: 700; letter-spacing: .3px; }
     .rider-info .rider-actions { margin-top: 12px; display:flex; gap:10px; flex-wrap: wrap; }
@@ -514,7 +514,7 @@
 
   <script>
     // REPLACE WITH YOUR GOOGLE APP SCRIPT URL
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv69YVjiAxzYteFo7tl4LGVecznj35_kRYY4_Eca3IPmAnOouSQgTIwTqdXESQOrEP2A/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzBOyI8Jo61xnbVHFmPB3SgvaT9g0iUtIU3T1cP5O9JZbvawZ1c3HyZrJrH6dfn035N4A/exec';
     const STORAGE_KEY = 'currentLaundryOrder';
     let userSessionId = null;
     let currentOrderId = null;
@@ -522,6 +522,10 @@
     let messageInterval = null;
     let lastMessageTs = null;
     let lastBookingDetails = null;
+    // Add: lock to prevent double submit
+    let isSubmittingLaundry = false;
+    // NEW: track last known delivery status in-memory to prevent downgrades
+    let lastKnownDeliveryStatus = null;
 
     document.addEventListener('DOMContentLoaded', function() {
       initializeSession();
@@ -562,37 +566,67 @@
     function handleSubmit(e) {
       e.preventDefault();
       if (!validateForm()) return;
-      lastBookingDetails = {
-        customerName: document.getElementById('customerName').value.trim(),
-        customerPhone: document.getElementById('customerPhone').value.trim(),
-        pickupLocation: document.getElementById('pickupLocation').value.trim(),
-        deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
-        basket: document.getElementById('basket').value.trim(),
-        paymentStatus: document.getElementById('paymentStatus').value,
-        paymentCost: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? parseFloat(document.getElementById('paymentCost').value) : 0,
-        notes: document.getElementById('notes').value.trim()
-      };
-      const formData = {
-        action: 'submit_booking',
-        sessionId: userSessionId,
-        type: 'laundry',
-        customerName: lastBookingDetails.customerName,
-        customerPhone: lastBookingDetails.customerPhone,
-        pickupLocation: lastBookingDetails.pickupLocation,
-        deliveryLocation: lastBookingDetails.deliveryLocation,
-        basketName: lastBookingDetails.basket,
-        paymentStatus: lastBookingDetails.paymentStatus,
-        paymentCost: lastBookingDetails.paymentCost,
-        notes: lastBookingDetails.notes,
-        timestamp: new Date().toISOString()
-      };
-      submitBooking(formData);
+
+      // Prevent double submission: lock and disable button immediately
+      if (isSubmittingLaundry) return;
+      isSubmittingLaundry = true;
+      const submitBtn = document.getElementById('submitBtn');
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
+
+      // Check connectivity before proceeding (like food.html)
+      checkServerConnectivity().then(isConnected => {
+        if (!isConnected) {
+          alert('Unable to connect to the server. Please check your internet connection and try again.');
+          // Release lock on failure
+          isSubmittingLaundry = false;
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Laundry Booking'; }
+          return;
+        }
+
+        // Non-blocking notification permission request
+        setTimeout(() => checkNotificationPermission && checkNotificationPermission(), 100);
+
+        // Compute payment fields first (avoid self-reference)
+        const paymentStatusVal = document.getElementById('paymentStatus').value;
+        const rawCost = parseFloat(document.getElementById('paymentCost').value);
+        const paymentCostVal = paymentStatusVal === 'Not Yet Paid' ? (isNaN(rawCost) ? 0 : rawCost) : 0;
+
+        lastBookingDetails = {
+          customerName: document.getElementById('customerName').value.trim(),
+          customerPhone: document.getElementById('customerPhone').value.trim(),
+          pickupLocation: document.getElementById('pickupLocation').value.trim(),
+          deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
+          basket: document.getElementById('basket').value.trim(),
+          paymentStatus: paymentStatusVal,
+          paymentCost: paymentCostVal,
+          notes: document.getElementById('notes').value.trim()
+        };
+
+        const formData = {
+          action: 'submit_booking',
+          sessionId: userSessionId,
+          type: 'laundry',
+          customerName: lastBookingDetails.customerName,
+          customerPhone: lastBookingDetails.customerPhone,
+          pickupLocation: lastBookingDetails.pickupLocation,
+          deliveryLocation: lastBookingDetails.deliveryLocation,
+          basketName: lastBookingDetails.basket,
+          paymentStatus: lastBookingDetails.paymentStatus,
+          paymentCost: lastBookingDetails.paymentCost,
+          notes: lastBookingDetails.notes,
+          timestamp: new Date().toISOString()
+        };
+        submitBooking(formData);
+      });
     }
 
     function submitBooking(formData) {
       const submitBtn = document.getElementById('submitBtn');
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Submitting...';
+      // Keep existing UX but avoid double-disabling if handleSubmit already did it
+      if (submitBtn && !submitBtn.disabled) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+      }
 
       fetch(SCRIPT_URL, {
         method: 'POST',
@@ -613,17 +647,20 @@
           showCancelButton();
           startRiderCheck();
           document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth' });
+          // Intentionally keep the lock engaged on success
         } else {
           alert('Error: ' + data.message);
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Submit Laundry Booking';
+          // Release lock on failure
+          isSubmittingLaundry = false;
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Laundry Booking'; }
         }
       })
       .catch(err => {
         console.error('Error:', err);
         alert('Error submitting booking. Please try again.');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Submit Laundry Booking';
+        // Release lock on network error
+        isSubmittingLaundry = false;
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Laundry Booking'; }
       });
     }
 
@@ -647,9 +684,15 @@
     function showCancelButton() {
       const actions = document.getElementById('orderActions');
       actions.style.display = 'block';
-      actions.innerHTML = `
-        <button class="confirm-btn" style="background:linear-gradient(135deg,#dc3545,#b71c1c);" onclick="cancelBooking()">Cancel Booking</button>
-      `;
+      // NEW: only show cancel when pending; otherwise clear actions
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      if (!saved.status || saved.status === 'pending') {
+        actions.innerHTML = `
+          <button class="confirm-btn" style="background:linear-gradient(135deg,#dc3545,#b71c1c);" onclick="cancelBooking()">Cancel Booking</button>
+        `;
+      } else {
+        actions.innerHTML = '';
+      }
     }
 
     function cancelBooking() {
@@ -693,11 +736,33 @@
           .then(data => {
             if (!data || !data.success || !data.booking) return;
             const b = data.booking;
-            if (b.status === 'assigned') {
-              assignRider(b);
-            } else if (b.status === 'delivered') {
+
+            // Keep local in sync so reload won't regress
+            if (b.delivery_status) {
+              lastKnownDeliveryStatus = b.delivery_status;
+              saveOrderState({ orderId: currentOrderId, status: b.status, deliveryStatus: b.delivery_status });
+            }
+
+            if (b.delivery_status === 'delivered_by_rider') {
+              ensureRiderCard(b);
+              syncRiderUIWithStatus(b);
+            }
+            else if (b.delivery_status === 'item_claimed' || b.delivery_status === 'claimed') {
+              ensureRiderCard(b);
+              syncRiderUIWithStatus(b);
+            }
+            else if (b.status === 'assigned' || b.status === 'confirmed' || b.delivery_status === 'rider_assigned' ||
+                     (b.rider_name && b.rider_name.trim() !== '')) {
+              const riderInfoEl = document.getElementById('riderInfo');
+              if (!riderInfoEl || riderInfoEl.innerHTML.trim() === '') {
+                assignRider(b); // assignRider will call syncRiderUIWithStatus
+              } else {
+                syncRiderUIWithStatus(b);
+              }
+            }
+            else if (b.status === 'delivered') {
               showCompletedReceipt();
-              saveOrderState({ orderId: currentOrderId, status: 'delivered' });
+              saveOrderState({ orderId: currentOrderId, status: 'delivered', deliveryStatus: 'delivered' });
               stopIntervals();
             }
           })
@@ -714,9 +779,83 @@
       }, 4000);
     }
 
+    // Ensure rider card exists before updating progress/status
+    function ensureRiderCard(booking) {
+      const riderInfoEl = document.getElementById('riderInfo');
+      if (!riderInfoEl || riderInfoEl.innerHTML.trim() === '') {
+        assignRider(booking);
+      }
+    }
+
+    // NEW: helper to rank statuses so we never downgrade on reload
+    function getStatusRank(s) {
+      switch (s) {
+        case 'delivered': return 5;
+        case 'delivered_by_rider': return 4;
+        case 'item_claimed':
+        case 'claimed': return 3;
+        case 'on_the_way': return 2;
+        case 'rider_assigned':
+        case 'assigned': return 1;
+        case 'waiting_for_rider':
+        default: return 0;
+      }
+    }
+    function pickNoDowngrade(incoming, saved) {
+      if (!saved) return incoming || null;
+      if (!incoming) return saved;
+      return getStatusRank(incoming) >= getStatusRank(saved) ? incoming : saved;
+    }
+
+    // NEW: sync current delivery_status to UI without allowing downgrade
+    function syncRiderUIWithStatus(booking) {
+      const statusEl = document.getElementById('riderStatusText');
+      const progressFill = document.getElementById('riderProgressFill');
+
+      // read saved deliveryStatus from storage
+      let savedStatus = null;
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        savedStatus = saved && saved.deliveryStatus ? saved.deliveryStatus : null;
+      } catch (_) {}
+
+      // compute effective (no-downgrade) delivery_status
+      const effectiveStatus = pickNoDowngrade(booking.delivery_status, lastKnownDeliveryStatus || savedStatus);
+
+      // persist progression so future reloads also respect it
+      if (effectiveStatus && effectiveStatus !== lastKnownDeliveryStatus) {
+        lastKnownDeliveryStatus = effectiveStatus;
+        saveOrderState({ orderId: currentOrderId, status: booking.status || 'assigned', deliveryStatus: effectiveStatus });
+      }
+
+      // Final completion guard
+      if (booking.status === 'delivered' || effectiveStatus === 'delivered') {
+        if (progressFill) progressFill.style.width = '100%';
+        showCompletedReceipt();
+        return;
+      }
+
+      // Use effectiveStatus for UI; never regress back to "assigned"
+      if (effectiveStatus === 'delivered_by_rider') {
+        if (statusEl) statusEl.textContent = 'Status: Laundry delivered! Please confirm receipt';
+        if (progressFill) progressFill.style.width = '90%';
+        if (typeof updateOrderActions === 'function') updateOrderActions('delivered_by_rider');
+      } else if (effectiveStatus === 'item_claimed' || effectiveStatus === 'claimed') {
+        if (statusEl) statusEl.textContent = 'Status: Laundry has been picked up';
+        if (progressFill) progressFill.style.width = '75%';
+      } else if (effectiveStatus === 'on_the_way' || booking.status === 'assigned') {
+        if (statusEl) statusEl.textContent = 'Status: On the way to pickup laundry';
+        // Only set default width if not already advanced
+        if (progressFill && getComputedStyle(progressFill).width === '0px') progressFill.style.width = '35%';
+      }
+    }
+
+    // Do NOT stop polling when rider is assigned; just (re)start messages polling
     function assignRider(booking) {
-      saveOrderState({ orderId: currentOrderId, status: 'assigned' });
-      stopIntervals();
+      saveOrderState({ orderId: currentOrderId, status: 'assigned', deliveryStatus: booking.delivery_status || lastKnownDeliveryStatus || 'rider_assigned' });
+      // stopIntervals(); // keep polling for claimed/delivered
+      stopMessageIntervalOnly && stopMessageIntervalOnly();
+
       document.getElementById('riderStatus').innerHTML = `
         <span class="status-indicator status-assigned"></span>
         Rider assigned!
@@ -728,14 +867,14 @@
             <div class="avatar">${initials}</div>
             <div>
               <div class="name-row">
-                <h3 style="margin:0;">${booking.rider_name}</h3>
+                <h3 style="margin:0;">${booking.rider_name || 'Your Rider'}</h3>
                 <span class="pill">Assigned</span>
               </div>
               <div class="rider-details">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 1 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 1 2.81.7A2 2 0 0 1 22 16.92z"/>
                 </svg>
-                <span>${booking.rider_phone}</span>
+                <span>${booking.rider_phone || ''}</span>
               </div>
               <div class="rider-details">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
@@ -756,113 +895,82 @@
               </div>
             </div>
           </div>
+          <!-- Keep your existing messages container/actions -->
           <div id="messagesContainer" style="margin-top:14px; text-align:left;">
             <div style="font-weight:700; margin-bottom:6px;">Messages from your rider</div>
             <div id="messagesList" style="max-height:160px; overflow:auto; background:rgba(255,255,255,0.12); padding:10px; border-radius:10px; color:#000;"></div>
           </div>
           <div class="rider-actions">
-            <a class="contact-btn" href="tel:${booking.rider_phone}">📞 Call Rider</a>
+            <a class="contact-btn" href="tel:${booking.rider_phone || ''}">📞 Call Rider</a>
           </div>
         </div>
       `;
-      document.getElementById('orderActions').innerHTML = `
-        <button class="confirm-btn" onclick="confirmDelivery()">
-          Confirm Laundry Delivery Received
-        </button>
-      `;
-      startMessagesPolling();
+
+      // Replace cancel with confirm
+      const actions = document.getElementById('orderActions');
+      if (actions) {
+        actions.style.display = 'block';
+        actions.innerHTML = `
+          <button class="confirm-btn confirm-receipt-btn" onclick="confirmDelivery(this)">
+            Confirm Laundry Delivery Received
+          </button>
+        `;
+      }
+
+      // Immediately sync with actual status so it doesn't show the default after reload
+      syncRiderUIWithStatus(booking);
+      startMessagesPolling && startMessagesPolling();
     }
 
-    function confirmDelivery() {
-      fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'complete_booking', order_id: currentOrderId })
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          saveOrderState({ orderId: currentOrderId, status: 'delivered' });
-          const statusEl = document.getElementById('riderStatusText');
-          if (statusEl) statusEl.textContent = 'Status: Completed';
-          const progressFill = document.getElementById('riderProgressFill');
-          if (progressFill) progressFill.style.width = '100%';
-          showCompletedReceipt();
-          stopIntervals();
-        } else {
-          alert('Error completing order: ' + data.message);
+    // Harden confirmDelivery to avoid double-click and mirror food.html completion UX
+    function confirmDelivery(btn) {
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.dataset.origText = btn.textContent;
+          btn.textContent = 'Processing...';
         }
-      })
-      .catch(() => alert('Error completing order. Please try again.'));
-    }
 
-    function showCompletedReceipt() {
-      document.getElementById('completedMessage').innerHTML = `
-        <div class="completed-message">
-          <h3>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px;">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22,4 12,14.01 9,11.01"/>
-            </svg>
-            Order Completed!
-          </h3>
-          <p>Thank you for using Aup Grab. Your laundry has been delivered successfully.</p>
-          <p style="margin-top: 15px;">Order ID: <strong>${currentOrderId}</strong></p>
-          <div style="margin-top:16px;">
-            <button class="confirm-btn" onclick="placeNewOrder()">Place New Order</button>
-          </div>
-        </div>
-      `;
-      document.getElementById('orderActions').style.display = 'none';
-    }
-
-    function placeNewOrder() {
-      localStorage.removeItem(STORAGE_KEY);
-      stopIntervals();
-      window.location.href = 'index.html';
-    }
-
-    function startMessagesPolling() {
-      stopMessageIntervalOnly();
-      lastMessageTs = null;
-      messageInterval = setInterval(() => {
-        const url = `${SCRIPT_URL}?action=get_messages&order_id=${encodeURIComponent(currentOrderId)}${lastMessageTs ? `&since=${encodeURIComponent(lastMessageTs)}` : ''}`;
-        fetch(url)
-          .then(r => r.json())
-          .then(data => {
-            if (!data || !data.success || !Array.isArray(data.messages)) return;
-            if (data.messages.length > 0) {
-              renderMessages(data.messages);
-              const last = data.messages[data.messages.length - 1];
-              if (last && last.timestamp) lastMessageTs = last.timestamp;
-            }
-          })
-          .catch(() => {});
-      }, 4000);
-    }
-
-    function renderMessages(msgs) {
-      const list = document.getElementById('messagesList');
-      if (!list) return;
-      const fr = document.createDocumentFragment();
-      msgs.forEach(m => {
-        const div = document.createElement('div');
-        div.style.padding = '6px 8px';
-        div.style.marginBottom = '6px';
-        div.style.background = '#fff';
-        div.style.borderRadius = '6px';
-        div.style.color = '#000';
-        const ts = m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '';
-        div.textContent = `${ts} - ${m.text}`;
-        fr.appendChild(div);
-      });
-      list.appendChild(fr);
-      list.scrollTop = list.scrollHeight;
+        fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'complete_booking', order_id: currentOrderId })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            // Persist delivered status as final
+            saveOrderState({ orderId: currentOrderId, status: 'delivered', deliveryStatus: 'delivered' });
+            const statusEl = document.getElementById('riderStatusText');
+            if (statusEl) statusEl.textContent = 'Status: Completed';
+            const progressFill = document.getElementById('riderProgressFill');
+            if (progressFill) progressFill.style.width = '100%';
+            showCompletedReceipt();
+            stopIntervals();
+          } else {
+            alert('Error completing order: ' + data.message);
+            if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || 'Confirm Laundry Delivery Received'; }
+          }
+        })
+        .catch(() => {
+          alert('Error completing order. Please try again.');
+          if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || 'Confirm Laundry Delivery Received'; }
+        });
+      } catch (e) {
+        console.error('confirmDelivery error', e);
+        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || 'Confirm Laundry Delivery Received'; }
+      }
     }
 
     function saveOrderState(state) {
       try {
-        const toSave = { orderId: state.orderId || currentOrderId, status: state.status, booking: state.booking || lastBookingDetails };
+        const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        const toSave = {
+          orderId: state.orderId || existing.orderId || currentOrderId,
+          status: state.status !== undefined ? state.status : existing.status,
+          deliveryStatus: state.deliveryStatus !== undefined ? state.deliveryStatus : existing.deliveryStatus,
+          booking: state.booking || existing.booking || lastBookingDetails
+        };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
       } catch {}
     }
@@ -874,6 +982,8 @@
         const saved = JSON.parse(raw);
         if (!saved || !saved.orderId) return;
         currentOrderId = saved.orderId;
+        lastKnownDeliveryStatus = saved.deliveryStatus || null;
+
         document.getElementById('statusSection').style.display = 'block';
         document.getElementById('orderIdDisplay').innerHTML = `
           <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
@@ -883,19 +993,67 @@
           showBookingSummary(saved.booking);
         }
         disableForm();
-        if (saved.status === 'assigned') {
-          fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
-            .then(r => r.json())
-            .then(d => { if (d.success && d.booking) assignRider(d.booking); else startRiderCheck(); })
-            .catch(() => startRiderCheck());
+
+        // Pre-apply saved delivery status to avoid regression flash while waiting for fetch
+        if (saved.status === 'assigned' && saved.deliveryStatus && saved.deliveryStatus !== 'waiting_for_rider') {
+          ensureRiderCard({ rider_name: 'Your Rider', rider_phone: '' });
+          syncRiderUIWithStatus({ status: 'assigned', delivery_status: saved.deliveryStatus });
         } else if (saved.status === 'delivered') {
           showCompletedReceipt();
-        } else if (saved.status === 'pending') {
-          showCancelButton();
-          startRiderCheck();
-        } else {
-          startRiderCheck();
         }
+
+        // Always fetch latest status and then re-sync
+        fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d.success && d.booking) {
+              const b = d.booking;
+              if (b.status === 'delivered') {
+                showCompletedReceipt();
+                saveOrderState({ orderId: currentOrderId, status: 'delivered', deliveryStatus: 'delivered' });
+                return;
+              }
+              if (b.status === 'assigned' || b.status === 'confirmed' ||
+                  b.delivery_status === 'rider_assigned' || b.delivery_status === 'on_the_way' ||
+                  (b.rider_name && b.rider_name.trim() !== '')) {
+                assignRider(b); // will sync to b.delivery_status
+              } else if (saved.status === 'pending') {
+                showCancelButton();
+                startRiderCheck();
+              } else {
+                startRiderCheck();
+              }
+            } else {
+              // Fallback to saved state
+              if (saved.status === 'assigned') {
+                ensureRiderCard({ rider_name: 'Your Rider', rider_phone: '' });
+                if (saved.deliveryStatus) {
+                  syncRiderUIWithStatus({ status: 'assigned', delivery_status: saved.deliveryStatus });
+                }
+                startRiderCheck();
+              } else if (saved.status === 'delivered') {
+                showCompletedReceipt();
+              } else {
+                showCancelButton();
+                startRiderCheck();
+              }
+            }
+          })
+          .catch(() => {
+            // ...existing fallback if fetch fails...
+            if (saved.status === 'assigned') {
+              ensureRiderCard({ rider_name: 'Your Rider', rider_phone: '' });
+              if (saved.deliveryStatus) {
+                syncRiderUIWithStatus({ status: 'assigned', delivery_status: saved.deliveryStatus });
+              }
+              startRiderCheck();
+            } else if (saved.status === 'delivered') {
+              showCompletedReceipt();
+            } else {
+              showCancelButton();
+              startRiderCheck();
+            }
+          });
       } catch {}
     }
 
@@ -983,6 +1141,162 @@
       if (error) {
         error.textContent = message;
         error.style.display = 'block';
+      }
+    }
+
+    // Add: connectivity helper to prevent ReferenceError
+    function checkServerConnectivity() {
+      return fetch(`${SCRIPT_URL}?action=ping&ts=${Date.now()}`, {
+        method: 'GET',
+        mode: 'no-cors',
+        cache: 'no-cache'
+      })
+        .then(() => true)
+        .catch(() => false);
+    }
+
+    // Add missing updateOrderActions function like in other pages
+    function updateOrderActions(deliveryStatus) {
+      const actionsEl = document.getElementById('orderActions');
+      if (!actionsEl) return;
+
+      if (deliveryStatus === 'delivered_by_rider') {
+        actionsEl.innerHTML = `
+          <div style="text-align: center; margin-bottom: 15px;">
+            <div style="color: #4a148c; font-weight: bold; margin-bottom: 10px; font-size: 16px;">
+              ✓ Your laundry has been delivered!
+            </div>
+            <div style="color: #666; margin-bottom: 15px;">
+              Please confirm when you have received your laundry
+            </div>
+          </div>
+          <button class="confirm-btn"
+                  style="background: linear-gradient(135deg, #ad7b05, #c9b820); width: 100%; padding: 16px; font-size: 16px; animation: pulse 2s infinite; transform: scale(1.05); box-shadow: 0 4px 12px rgba(173, 123, 5, 0.3);"
+                  onclick="confirmDelivery(this)">
+            Confirm Laundry Delivery Received
+          </button>
+        `;
+      } else if (!actionsEl.innerHTML.includes('confirm-btn')) {
+        // Fallback: keep a plain confirm button if not yet present
+        actionsEl.innerHTML = `
+          <button class="confirm-btn" onclick="confirmDelivery(this)">
+            Confirm Laundry Delivery Received
+          </button>
+        `;
+      }
+    }
+
+    // Update showCompletedReceipt to match other HTML files
+    function showCompletedReceipt(payload) {
+      try {
+        // Stop background timers
+        if (typeof stopIntervals === 'function') stopIntervals();
+
+        // Persist final state
+        saveOrderState({ orderId: currentOrderId, status: 'delivered', deliveryStatus: 'delivered' });
+
+        // Update top status
+        const riderStatus = document.getElementById('riderStatus');
+        if (riderStatus) {
+          riderStatus.innerHTML = '<span class="status-indicator status-assigned"></span> Delivery completed.';
+        }
+
+        // Hide actions and summary
+        const actions = document.getElementById('orderActions');
+        if (actions) actions.style.display = 'none';
+        
+        const summary = document.getElementById('bookingSummary');
+        if (summary) summary.style.display = 'none';
+
+        // Show completion card with more detailed receipt information
+        const message = (payload && payload.message) ? payload.message : 'Your laundry has been delivered successfully.';
+        const completed = document.getElementById('completedMessage');
+        if (completed) {
+          completed.innerHTML = `
+            <div class="completed-message">
+              <h3>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px;">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22,4 12,14.01 9,11.01"/>
+                </svg>
+                Laundry Service Completed!
+              </h3>
+              <p>Thank you for using Aup Grab. ${message}</p>
+              <p style="margin-top: 15px;">Order ID: <strong>${currentOrderId}</strong></p>
+              <div style="margin-top:16px;">
+                <button class="confirm-btn" onclick="placeNewOrder()">Place New Booking</button>
+              </div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        console.warn('showCompletedReceipt error', e);
+      }
+    }
+
+    // Add CSS for animation if missing
+    if (!document.querySelector('style').textContent.includes('@keyframes pulse')) {
+      const styleEl = document.createElement('style');
+      styleEl.textContent = `
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(156, 39, 176, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(156, 39, 176, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(156, 39, 176, 0); }
+        }
+      `;
+      document.head.appendChild(styleEl);
+    }
+
+    // Ensure placeNewOrder function is properly defined
+    window.placeNewOrder = function() {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        stopIntervals();
+      } catch (_) {}
+      // Redirect to index page to start a new booking
+      window.location.href = 'index.html';
+    };
+
+    // Update syncRiderUIWithStatus to call updateOrderActions
+    function syncRiderUIWithStatus(booking) {
+      const statusEl = document.getElementById('riderStatusText');
+      const progressFill = document.getElementById('riderProgressFill');
+
+      // read saved deliveryStatus from storage
+      let savedStatus = null;
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        savedStatus = saved && saved.deliveryStatus ? saved.deliveryStatus : null;
+      } catch (_) {}
+
+      // compute effective (no-downgrade) delivery_status
+      const effectiveStatus = pickNoDowngrade(booking.delivery_status, lastKnownDeliveryStatus || savedStatus);
+
+      // persist progression so future reloads also respect it
+      if (effectiveStatus && effectiveStatus !== lastKnownDeliveryStatus) {
+        lastKnownDeliveryStatus = effectiveStatus;
+        saveOrderState({ orderId: currentOrderId, status: booking.status || 'assigned', deliveryStatus: effectiveStatus });
+      }
+
+      // Final completion guard
+      if (booking.status === 'delivered' || effectiveStatus === 'delivered') {
+        if (progressFill) progressFill.style.width = '100%';
+        showCompletedReceipt();
+        return;
+      }
+
+      // Use effectiveStatus for UI; never regress back to "assigned"
+      if (effectiveStatus === 'delivered_by_rider') {
+        if (statusEl) statusEl.textContent = 'Status: Laundry delivered! Please confirm receipt';
+        if (progressFill) progressFill.style.width = '90%';
+        if (typeof updateOrderActions === 'function') updateOrderActions('delivered_by_rider');
+      } else if (effectiveStatus === 'item_claimed' || effectiveStatus === 'claimed') {
+        if (statusEl) statusEl.textContent = 'Status: Laundry has been picked up';
+        if (progressFill) progressFill.style.width = '75%';
+      } else if (effectiveStatus === 'on_the_way' || booking.status === 'assigned') {
+        if (statusEl) statusEl.textContent = 'Status: On the way to pickup laundry';
+        // Only set default width if not already advanced
+        if (progressFill && getComputedStyle(progressFill).width === '0px') progressFill.style.width = '35%';
       }
     }
   </script>
