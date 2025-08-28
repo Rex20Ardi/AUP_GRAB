@@ -239,11 +239,10 @@
       background: #f8f9fa;
       border: 2px solid #e9ecef;
       border-radius: 8px;
-      padding: 10px;
+      padding: 12px;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all 0.3s;
       text-align: center;
-      margin-bottom: 6px;
     }
     
     .rider-option:hover {
@@ -257,232 +256,224 @@
       font-weight: bold;
     }
     
-    /* Checkbox styling improvements */
-    .rider-check {
-      width: 20px !important;
-      height: 20px !important;
-      margin: 0;
-      cursor: pointer;
-      vertical-align: middle;
-      accent-color: #4a7c59;
-    }
-    
-    /* Improve the label container for better touch */
-    .rider-option label {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+    .submit-btn {
       width: 100%;
-      padding: 4px;
+      background: linear-gradient(135deg, #4a7c59, #2d5016);
+      color: white;
+      border: none;
+      padding: 18px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: bold;
       cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 20px;
     }
     
-    /* Better mobile styling for rider controls */
-    @media (max-width: 768px) {
-      /* Optimize container padding for mobile */
-      .container {
-        margin: 5px;
-        border-radius: 12px;
-        width: 100%;
-        max-width: 100%;
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(74, 124, 89, 0.3);
+    }
+    
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .status-section {
+      background: #f8f9fa;
+      padding: 30px;
+      border-top: 1px solid #e9ecef;
+      display: none;
+    }
+    
+    .success-message {
+      background: #d4edda;
+      color: #155724;
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid #c3e6cb;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .order-id-display {
+      background: #e8f5e8;
+      padding: 20px;
+      border-radius: 10px;
+      border: 2px solid #4a7c59;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .order-id {
+      font-family: monospace;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #2d5016;
+    }
+    
+    .rider-status {
+      text-align: center;
+      padding: 20px;
+      font-size: 1.1rem;
+      color: #666;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 10px;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-waiting {
+      background: #ffc107;
+    }
+    
+    .status-assigned {
+      background: #4a7c59;
+      animation: none;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    .rider-info {
+      background: linear-gradient(135deg, #4a7c59, #2d5016);
+      color: white;
+      padding: 25px;
+      border-radius: 15px;
+      margin: 20px 0;
+      text-align: center;
+      animation: slideIn 0.5s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
       }
-      
-      body {
-        padding: 10px;
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    .rider-info h3 {
+      margin-bottom: 15px;
+      font-size: 1.5rem;
+    }
+    
+    .rider-details {
+      font-size: 1.1rem;
+      margin: 8px 0;
+    }
+    
+    .confirm-btn {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: all 0.3s;
+    }
+    
+    .confirm-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+    }
+    
+    .completed-message {
+      background: linear-gradient(135deg, #4a7c59, #2d5016);
+      color: white;
+      padding: 25px;
+      border-radius: 15px;
+      text-align: center;
+      animation: slideIn 0.5s ease-out;
+    }
+
+    /* Enhanced rider card UI (uniform across pages) */
+    .rider-info .rider-grid { display: grid; grid-template-columns: 72px 1fr; gap: 16px; align-items: center; text-align: left; }
+    .rider-info .avatar { width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-weight: 800; font-size: 1.25rem; box-shadow: inset 0 2px 8px rgba(0,0,0,0.25); }
+    .rider-info .name-row { display:flex; align-items:center; gap:10px; margin-bottom: 6px; }
+    .rider-info .pill { display:inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.18); font-size: 0.8rem; font-weight: 700; letter-spacing: .3px; }
+    .rider-info .rider-actions { margin-top: 12px; display:flex; gap:10px; flex-wrap: wrap; }
+    .contact-btn { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 10px 14px; border-radius: 10px; font-weight: 700; text-decoration: none; transition: all .2s; }
+    .contact-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
+    .progress { margin-top: 12px; }
+    .progress-track { width: 100%; height: 8px; background: rgba(255,255,255,0.25); border-radius: 999px; overflow:hidden; }
+    .progress-fill { height: 100%; width: 35%; background: linear-gradient(90deg, #7c4dff, #18ffff); border-radius: 999px; box-shadow: 0 0 10px rgba(24,255,255,0.5); transition: width .3s ease; }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+      .container {
+        margin: 10px;
+        border-radius: 15px;
       }
       
       .form-container {
-        padding: 15px 12px;
+        padding: 30px 20px;
       }
       
-      /* More compact rider options for mobile */
-      .rider-option {
-        padding: 8px 6px;
+      .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
       }
       
-      /* More compact label */
-      .rider-option label {
-        gap: 4px;
-        padding: 2px;
+      .rider-options {
+        grid-template-columns: 1fr;
       }
       
-      /* Optimize input sizes for mobile */
-      .rider-count {
-        width: 45px !important;
-        height: 36px;
+      .quantity-group {
+        justify-content: center;
+      }
+      
+      .back-btn {
+        left: 15px;
+        padding: 8px 12px;
         font-size: 14px;
       }
-      
-      /* Improve count buttons for mobile */
-      .count-btn, .count-minus, .count-plus {
-        min-width: 32px;
-        min-height: 32px;
-        font-size: 16px;
-        line-height: 1;
-      }
-      
-      /* Tighter form spacing */
-      .form-group {
-        margin-bottom: 16px;
-      }
-      
-      /* Smaller text inputs */
-      input, select, textarea {
-        padding: 10px;
-      }
-      
-      /* Smaller labels */
-      label {
-        font-size: 0.9rem;
-        margin-bottom: 4px;
-      }
-      
-      /* Make submit button smaller */
-      .submit-btn {
-        padding: 14px;
-        font-size: 16px;
-        margin-top: 15px;
-      }
-      
-      /* Tighter margins for user session */
-      .user-session {
-        padding: 10px;
-        margin-bottom: 20px;
-      }
     }
 
-    /* Small phones (iPhone SE, etc) */
+    /* Mobile adjustments for rider info (small phones) */
     @media (max-width: 420px) {
-      /* Even tighter spacing for very small screens */
-      body {
-        padding: 5px;
-      }
-      
-      .container {
-        margin: 0;
-        border-radius: 10px;
-      }
-      
-      /* Optimize header for small screens */
+      /* Header: use grid to avoid overlaps */
       .header {
-        padding: 12px 10px;
+        padding: 16px;
+        text-align: center;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        row-gap: 8px;
       }
-      
-      .header h1 {
-        font-size: 1.3rem;
-      }
-      
-      .header p {
-        font-size: 0.85rem;
-      }
-      
-      /* Smaller buttons for small screens */
-      .back-btn, .info-btn {
-        padding: 6px 10px;
-        font-size: 12px;
-      }
-      
-      /* Optimize user session for small screens */
-      .user-id {
-        font-size: 0.75rem;
-        padding: 2px 4px;
-      }
-      
-      /* Make rider option layout more compact */
-      .rider-options {
-        gap: 5px;
-      }
-      
-      /* Rider options in a single column for very small screens */
-      .rider-option label > span:first-child {
-        font-size: 0.9rem;
-      }
-      
-      /* Status section more compact */
-      .status-section {
-        padding: 15px 12px;
-      }
-      
-      .order-id-display {
-        padding: 15px;
-        margin: 15px 0;
-      }
-      
-      .order-id {
-        font-size: 1.2rem;
-      }
-      
-      /* Smaller rider info card */
-      .rider-info {
-        padding: 18px;
-        margin: 15px 0;
-      }
-      
-      .rider-info .avatar {
-        width: 45px;
-        height: 45px;
-        font-size: 0.9rem;
-      }
-      
-      .rider-info .rider-grid {
-        grid-template-columns: 45px 1fr;
-        gap: 8px;
-      }
-      
-      .rider-details {
-        font-size: 0.85rem;
-      }
-      
-      /* Smaller contact button */
-      .contact-btn {
-        padding: 8px 12px;
-        font-size: 0.9rem;
-      }
+      .back-btn, .info-btn { position: static; transform: none; padding: 8px 12px; font-size: 14px; }
+      .back-btn { justify-self: start; }
+      .info-btn { justify-self: end; }
+      .header-icon { grid-column: 1 / -1; }
+      .header h1 { grid-column: 1 / -1; font-size: 1.4rem; margin: 4px 0; }
+      .header p { grid-column: 1 / -1; font-size: 0.95rem; }
+      .rider-info .rider-grid { grid-template-columns: 56px 1fr; gap: 12px; }
+      .rider-info .avatar { width: 56px; height: 56px; font-size: 1rem; }
+      .rider-details { font-size: 0.95rem; word-break: break-word; }
+      .rider-info .rider-actions { flex-direction: column; gap: 8px; }
+      .rider-info .rider-actions .contact-btn { width: 100%; text-align: center; }
     }
 
-    /* Very small phones - additional tweaks */
-    @media (max-width: 359px) {
-      /* Extremely compact layout for tiny screens */
-      .rider-option {
-        padding: 6px 4px;
-      }
-      
-      .rider-count {
-        width: 40px !important;
-      }
-      
-      .count-btn, .count-minus, .count-plus {
-        min-width: 28px;
-        min-height: 28px;
-      }
-      
-      /* Stack the payment method selection */
-      .payment-cost-group div[style*="display: flex; gap: 20px"] {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 5px;
-      }
-      
-      /* Make form labels even smaller */
-      label {
-        font-size: 0.85rem;
-      }
-      
-      /* Make quantity section more compact */
-      .quantity-group {
-        gap: 8px;
-      }
-      
-      .quantity-btn {
-        width: 36px;
-        height: 36px;
-        font-size: 16px;
-      }
-      
-      .quantity-input {
-        width: 60px !important;
-      }
+    /* Add this CSS to the document head to enable the pulsing animation */
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
     }
   </style>
 </head>
@@ -770,28 +761,18 @@
         const count = option.querySelector('.rider-count');
         if (!check || !count) return;
 
-        // Make entire option clickable to toggle checkbox
-        option.addEventListener('click', (e) => {
-          // Only toggle if not clicking on inputs or buttons
-          if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
-            check.checked = !check.checked;
-            // Trigger change event manually
-            check.dispatchEvent(new Event('change'));
-          }
-        });
-
-        // Add +/- controls with better sizing for mobile
+        // Add +/- controls next to each count input
         const minusBtn = document.createElement('button');
         minusBtn.type = 'button';
         minusBtn.textContent = '−';
         minusBtn.className = 'count-btn count-minus';
-        minusBtn.style.cssText = 'margin-left:4px; width:32px; height:32px; border-radius:6px; border:none; background:#eee; color:#000; font-weight:bold;';
+        minusBtn.style.cssText = 'margin-left:6px; width:28px; height:28px; border-radius:6px; border:none; background:#eee; color:#000;';
 
         const plusBtn = document.createElement('button');
         plusBtn.type = 'button';
         plusBtn.textContent = '+';
         plusBtn.className = 'count-btn count-plus';
-        plusBtn.style.cssText = 'margin-left:2px; width:32px; height:32px; border-radius:6px; border:none; background:#eee; color:#000; font-weight:bold;';
+        plusBtn.style.cssText = 'margin-left:4px; width:28px; height:28px; border-radius:6px; border:none; background:#eee; color:#000;';
 
         // Insert buttons after the input
         count.parentNode.insertBefore(minusBtn, count.nextSibling);
