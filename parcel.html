@@ -468,6 +468,13 @@
       .rider-info .rider-actions { flex-direction: column; gap: 8px; }
       .rider-info .rider-actions .contact-btn { width: 100%; text-align: center; }
     }
+
+    /* Add this CSS to the document head to enable the pulsing animation */
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+    }
   </style>
 </head>
 <body>
@@ -527,6 +534,7 @@
       </div>
       
       <!-- Booking Form -->
+      <!-- Add ID to the form element -->
       <form id="parcelForm">
         <!-- Personal Information -->
         <div class="form-row">
@@ -644,6 +652,22 @@
             <div style="font-size: 12px; color: #666; margin-top: 5px;">
               Amount the rider needs to collect from recipient
             </div>
+            
+            <!-- Add payment method options -->
+            <div style="margin-top: 10px;">
+              <label>Payment Method <span class="required">*</span></label>
+              <div style="display: flex; gap: 20px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                  <input type="radio" name="paymentMethod" value="Cash" checked style="width: auto; margin-right: 8px;">
+                  Cash
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                  <input type="radio" name="paymentMethod" value="GCash" style="width: auto; margin-right: 8px;">
+                  GCash
+                </label>
+              </div>
+            </div>
+            
             <div class="error-message" id="paymentCostError">Please enter the payment amount</div>
           </div>
         </div>
@@ -694,7 +718,7 @@
   
   <script>
     // REPLACE WITH YOUR GOOGLE APP SCRIPT URL
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv69YVjiAxzYteFo7tl4LGVecznj35_kRYY4_Eca3IPmAnOouSQgTIwTqdXESQOrEP2A/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzBOyI8Jo61xnbVHFmPB3SgvaT9g0iUtIU3T1cP5O9JZbvawZ1c3HyZrJrH6dfn035N4A/exec';
     
     let userSessionId = null;
     let currentOrderId = null;
@@ -703,6 +727,7 @@
     let messageInterval = null;
     let lastMessageTs = null;
     const STORAGE_KEY = 'currentParcelOrder';
+    let lastKnownDeliveryStatus = null;
     
     // Initialize session
     window.onload = function() {
@@ -823,7 +848,12 @@
       });
       
       // Form submission
-      document.getElementById('parcelForm').addEventListener('submit', handleSubmit);
+      const form = document.getElementById('parcelForm');
+      if (form) {
+        form.addEventListener('submit', handleSubmit);
+      } else {
+        console.error("Form element with ID 'parcelForm' not found");
+      }
     }
     
     function updateTotalQuantityFromSelections() {
@@ -918,6 +948,9 @@
       e.preventDefault();
       if (!validateForm()) return;
       
+      // Ask for notification permission but don't disrupt the flow
+      setTimeout(() => checkNotificationPermission(), 100);
+      
       lastBookingDetails = {
         customerName: document.getElementById('customerName').value.trim(),
         customerPhone: document.getElementById('customerPhone').value.trim(),
@@ -925,6 +958,8 @@
         quantity: parseInt(document.getElementById('quantity').value),
         paymentStatus: document.getElementById('paymentStatus').value,
         paymentCost: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? parseFloat(document.getElementById('paymentCost').value) : 0,
+        paymentMethod: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? 
+                       document.querySelector('input[name="paymentMethod"]:checked').value : '',
         deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
         notes: document.getElementById('notes').value.trim()
       };
@@ -953,6 +988,8 @@
         paymentStatus: document.getElementById('paymentStatus').value,
         paymentCost: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? 
                      parseFloat(document.getElementById('paymentCost').value) : 0,
+        paymentMethod: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? 
+                     document.querySelector('input[name="paymentMethod"]:checked').value : '',
         deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
         notes: document.getElementById('notes').value.trim(),
         timestamp: new Date().toISOString()
@@ -1022,7 +1059,8 @@
           <div><strong>Phone:</strong> ${details.customerPhone}</div>
           <div><strong>Rider(s):</strong> ${Object.entries(details.riderSelections).map(([k,v])=>`${k} (${v})`).join(', ')}</div>
           <div><strong>Quantity:</strong> ${details.quantity}</div>
-          <div><strong>Payment:</strong> ${details.paymentStatus}${details.paymentStatus==='Not Yet Paid'?` (₱${details.paymentCost})`:''}</div>
+          <div><strong>Payment:</strong> ${details.paymentStatus}${details.paymentStatus==='Not Yet Paid'?
+            ` (₱${details.paymentCost} - ${details.paymentMethod || 'Cash'})`:''}</div>
           <div><strong>Delivery:</strong> ${details.deliveryLocation}</div>
           ${details.notes ? `<div><strong>Notes:</strong> ${details.notes}</div>` : ''}
         </div>
@@ -1033,9 +1071,14 @@
     function showCancelButton() {
       const actions = document.getElementById('orderActions');
       actions.style.display = 'block';
-      actions.innerHTML = `
-        <button class="confirm-btn" style="background:linear-gradient(135deg,#dc3545,#b71c1c);" onclick="cancelBooking()">Cancel Booking</button>
-      `;
+      
+      // Only show cancel button if we're in pending state (no rider assigned yet)
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      if (!saved.status || saved.status === 'pending') {
+        actions.innerHTML = `
+          <button class="confirm-btn" style="background:linear-gradient(135deg,#dc3545,#b71c1c);" onclick="cancelBooking()">Cancel Booking</button>
+        `;
+      }
     }
 
     // Cancel booking logic
@@ -1048,7 +1091,7 @@
         body: JSON.stringify({ action: 'cancel_booking', order_id: currentOrderId })
       })
       .then(r => r.json())
-      .then(data => {
+      .then((data) => {
         localStorage.removeItem(STORAGE_KEY);
         stopIntervals();
         document.getElementById('completedMessage').innerHTML = `
@@ -1076,71 +1119,148 @@
       let lastNotificationCheck = Date.now();
       
       checkInterval = setInterval(() => {
-        // Check booking status from Google Sheets
         fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
           .then(response => response.json())
           .then(data => {
             if (!data || !data.success || !data.booking) return;
             const b = data.booking;
-            if (b.status === 'assigned' || b.status === 'claimed') {
-              assignRider(b);
-            } else if (b.status === 'delivered') {
-              // backend may map to delivered; finalize
+
+            // Keep local in sync so reload won't regress
+            if (b.delivery_status) {
+              lastKnownDeliveryStatus = b.delivery_status;
+              saveOrderState({ orderId: currentOrderId, status: b.status, deliveryStatus: b.delivery_status });
+            }
+
+            if (b.delivery_status === 'delivered_by_rider') {
+              ensureRiderCard(b);
+              syncRiderUIWithStatus(b);
+            }
+            else if (b.delivery_status === 'item_claimed' || b.delivery_status === 'claimed') {
+              ensureRiderCard(b);
+              syncRiderUIWithStatus(b);
+            }
+            else if (b.status === 'assigned') {
+              const riderInfoEl = document.getElementById('riderInfo');
+              if (!riderInfoEl || riderInfoEl.innerHTML.trim() === '') {
+                assignRider(b); // assignRider will call syncRiderUIWithStatus(b)
+              } else {
+                syncRiderUIWithStatus(b);
+              }
+            }
+            else if (b.status === 'delivered') {
               showCompletedReceipt(b);
-              saveOrderState({ orderId: currentOrderId, status: 'delivered', booking: b.booking_details });
+              saveOrderState({ orderId: currentOrderId, status: 'delivered', deliveryStatus: 'delivered' });
               stopIntervals();
             }
           })
           .catch(error => console.error('Error checking status:', error));
         
-        // Check for notifications every 8 seconds
-        if (Date.now() - lastNotificationCheck > 8000) {
+        // More frequent notification polling
+        if (Date.now() - lastNotificationCheck > 4000) {
           lastNotificationCheck = Date.now();
           UserNotificationService.pollUserNotifications(SCRIPT_URL, userSessionId, lastNotificationCheck - 30000)
             .then(notifications => {
               UserNotificationService.showUserNotifications(notifications);
             });
         }
-      }, 4000); // Check every 4 seconds
+      }, 2000); // Poll every 2 seconds
     }
-    
+
+    // Ensure rider card exists before updating status/progress
+    function ensureRiderCard(booking) {
+      const riderInfoEl = document.getElementById('riderInfo');
+      if (!riderInfoEl || riderInfoEl.innerHTML.trim() === '') {
+        assignRider(booking);
+      }
+    }
+
+    // Helper: rank statuses so we never downgrade on reload
+    function getStatusRank(s) {
+      switch (s) {
+        case 'delivered': return 5;
+        case 'delivered_by_rider': return 4;
+        case 'item_claimed':
+        case 'claimed': return 3;
+        case 'on_the_way': return 2;
+        case 'rider_assigned':
+        case 'assigned': return 1;
+        case 'waiting_for_rider':
+        default: return 0;
+      }
+    }
+    function pickNoDowngrade(incoming, saved) {
+      if (!saved) return incoming || null;
+      if (!incoming) return saved;
+      return getStatusRank(incoming) >= getStatusRank(saved) ? incoming : saved;
+    }
+
+    // NEW: sync current delivery_status to UI without allowing downgrade
+    function syncRiderUIWithStatus(booking) {
+      const statusEl = document.getElementById('riderStatusText');
+      const progressFill = document.getElementById('riderProgressFill');
+
+      // read saved deliveryStatus from storage
+      let savedStatus = null;
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        savedStatus = saved && saved.deliveryStatus ? saved.deliveryStatus : null;
+      } catch (_) {}
+
+      // compute effective (no-downgrade) delivery_status
+      const effectiveStatus = pickNoDowngrade(booking.delivery_status, lastKnownDeliveryStatus || savedStatus);
+
+      // persist progression so future reloads also respect it
+      if (effectiveStatus && effectiveStatus !== lastKnownDeliveryStatus) {
+        lastKnownDeliveryStatus = effectiveStatus;
+        // do not alter other fields; only store deliveryStatus progression
+        saveOrderState({ orderId: currentOrderId, status: booking.status || 'assigned', deliveryStatus: effectiveStatus });
+      }
+
+      // Final completion guard
+      if (booking.status === 'delivered' || effectiveStatus === 'delivered') {
+        if (progressFill) progressFill.style.width = '100%';
+        showCompletedReceipt(booking);
+        return;
+      }
+
+      // Use effectiveStatus for UI; never regress back to "assigned"
+      if (effectiveStatus === 'delivered_by_rider') {
+        if (statusEl) statusEl.textContent = 'Status: Parcel delivered! Please confirm receipt';
+        if (progressFill) progressFill.style.width = '90%';
+        if (typeof updateOrderActions === 'function') updateOrderActions('delivered_by_rider');
+      } else if (effectiveStatus === 'item_claimed' || effectiveStatus === 'claimed') {
+        if (statusEl) statusEl.textContent = 'Status: Parcel has been claimed by rider';
+        if (progressFill) progressFill.style.width = '75%';
+      } else if (effectiveStatus === 'on_the_way' || booking.status === 'assigned') {
+        if (statusEl) statusEl.textContent = 'Status: On the way to pickup parcel';
+        if (progressFill && !progressFill.style.width) progressFill.style.width = '35%';
+      }
+    }
+
     function assignRider(booking) {
-      // update storage and intervals
-      saveOrderState({ orderId: currentOrderId, status: 'assigned' });
-      stopIntervals();
+      saveOrderState({ orderId: currentOrderId, status: 'assigned', deliveryStatus: booking.delivery_status || lastKnownDeliveryStatus || 'rider_assigned' });
       document.getElementById('riderStatus').innerHTML = `
         <span class="status-indicator status-assigned"></span>
         Rider assigned!
       `;
-      const initials = (booking.rider_name || '').trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase() || 'R';
+      
+      const riderName = booking.rider_name || 'Your Rider';
+      const riderPhone = booking.rider_phone || '';
+      const initials = (riderName || '').trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase() || 'R';
+      
       document.getElementById('riderInfo').innerHTML = `
         <div class="rider-info">
           <div class="rider-grid">
             <div class="avatar">${initials}</div>
             <div>
               <div class="name-row">
-                <h3 style="margin:0;">${booking.rider_name}</h3>
+                <h3 style="margin:0;">${riderName}</h3>
                 <span class="pill">Assigned</span>
               </div>
+              <div class="rider-details"><span>${riderPhone}</span></div>
+              <div class="rider-details">ETA: 20–30 minutes</div>
               <div class="rider-details">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 1 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 1 2.81.7A2 2 0 0 1 22 16.92z"/>
-                </svg>
-                <span>${booking.rider_phone}</span>
-              </div>
-              <div class="rider-details">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
-                  <circle cx="12" cy="12" r="10"/>
-                  <polyline points="12,6 12,12 16,14"/>
-                </svg>
-                ETA: Will be delivered by 5:00Pm (But call if needed ASAP)
-              </div>
-              <div class="rider-details">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                  <circle cx="12" cy="10" r="3"/>
-                </svg>
-                <span id="riderStatusText">Status: ${booking.status === 'claimed' ? 'Item Claimed' : 'On the way to pickup'}</span>
+                <span id="riderStatusText">Status: On the way to pickup parcel</span>
               </div>
               <div class="progress">
                 <div class="progress-track"><div class="progress-fill" id="riderProgressFill" style="width:35%"></div></div>
@@ -1152,159 +1272,117 @@
             <div id="messagesList" style="max-height:160px; overflow:auto; background:rgba(255,255,255,0.12); padding:10px; border-radius:10px; color:#000;"></div>
           </div>
           <div class="rider-actions">
-            <a class="contact-btn" href="tel:${booking.rider_phone}">📞 Call Rider</a>
+            <a class="contact-btn" href="tel:${riderPhone}">📞 Call Rider</a>
           </div>
         </div>
       `;
+      
+      // Replace cancel with confirm
       document.getElementById('orderActions').innerHTML = `
-        <button class="confirm-btn" onclick="confirmDelivery()">Confirm Parcel Delivery Received</button>
+        <button class="confirm-btn" onclick="confirmDelivery(this)">
+          Confirm Parcel Delivery Received
+        </button>
       `;
-      // start messages polling
+      
+      // Immediately sync with actual status so it doesn't show the default after reload
+      syncRiderUIWithStatus(booking);
       startMessagesPolling();
     }
-    
-    function confirmDelivery() {
-      // Mark booking as completed in Google Sheets
-      fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8',
-        },
-        body: JSON.stringify({ 
-          action: 'complete_booking',
-          order_id: currentOrderId 
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          saveOrderState({ orderId: currentOrderId, status: 'delivered' });
-          // Update rider UI to reflect completion
-          const statusEl = document.getElementById('riderStatusText');
-          if (statusEl) statusEl.textContent = 'Status: Completed';
-          const progressFill = document.getElementById('riderProgressFill');
-          if (progressFill) progressFill.style.width = '100%';
-          showCompletedReceipt();
-          stopIntervals();
-        } else {
-          alert('Error completing order: ' + data.message);
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        alert('Error completing order. Please try again.');
-      });
-    }
-    
-    function showCompletedReceipt(booking) {
-      const deliveryLocation = booking && booking.booking_details ? booking.booking_details.deliveryLocation : 'the specified location';
-      document.getElementById('completedMessage').innerHTML = `
-        <div class="completed-message">
-          <h3>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px;">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22,4 12,14.01 9,11.01"/>
-            </svg>
-            Order Completed!
-          </h3>
-          <p>Your parcel has been placed to ${deliveryLocation}.</p>
-          <p style="margin-top: 15px;">Order ID: <strong>${currentOrderId}</strong></p>
-          <div style="margin-top:16px;">
-            <button class="confirm-btn" onclick="placeNewOrder()">Place New Order</button>
-          </div>
-        </div>
-      `;
-      document.getElementById('orderActions').style.display = 'none';
-    }
-    
-    function placeNewOrder() {
-      localStorage.removeItem(STORAGE_KEY);
-      stopIntervals();
-      window.location.href = 'index.html';
-    }
-    
-    function startMessagesPolling() {
-      stopMessageIntervalOnly();
-      lastMessageTs = null;
-      messageInterval = setInterval(() => {
-        const url = `${SCRIPT_URL}?action=get_messages&order_id=${encodeURIComponent(currentOrderId)}${lastMessageTs ? `&since=${encodeURIComponent(lastMessageTs)}` : ''}`;
-        fetch(url)
-          .then(r => r.json())
-          .then(data => {
-            if (!data || !data.success || !Array.isArray(data.messages)) return;
-            if (data.messages.length > 0) {
-              renderMessages(data.messages);
-              const last = data.messages[data.messages.length - 1];
-              if (last && last.timestamp) lastMessageTs = last.timestamp;
-            }
-          })
-          .catch(err => console.error('messages poll error', err));
-      }, 4000);
-    }
-    
-    function renderMessages(msgs) {
-      const list = document.getElementById('messagesList');
-      if (!list) return;
-      const fr = document.createDocumentFragment();
-      msgs.forEach(m => {
-        const div = document.createElement('div');
-        div.style.padding = '6px 8px';
-        div.style.marginBottom = '6px';
-        div.style.background = '#fff';
-        div.style.borderRadius = '6px';
-        div.style.color = '#000';
-        const ts = m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '';
-        div.textContent = `${ts} - ${m.text}`;
-        fr.appendChild(div);
-      });
-      list.appendChild(fr);
-      list.scrollTop = list.scrollHeight;
-    }
-    
-    function saveOrderState(state) {
-      try {
-        // Save booking details as well for summary restore
-        const toSave = { 
-          orderId: state.orderId || currentOrderId, 
-          status: state.status, 
-          booking: state.booking || lastBookingDetails 
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-      } catch {}
-    }
 
+    // Update restore to always fetch latest status first and apply immediately
     function restoreFromStorage() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return;
         const saved = JSON.parse(raw);
         if (!saved || !saved.orderId) return;
+
         currentOrderId = saved.orderId;
+        lastKnownDeliveryStatus = saved.deliveryStatus || null;
+
         document.getElementById('statusSection').style.display = 'block';
         document.getElementById('orderIdDisplay').innerHTML = `
           <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
-          <div class="order-id">${currentOrderId}</div>
-        `;
-        // Restore booking summary if available
+          <div class="order-id">${currentOrderId}</div>`;
         if (saved.booking) {
           lastBookingDetails = saved.booking;
           showBookingSummary(saved.booking);
         }
         disableForm();
-        if (saved.status === 'assigned') {
-          fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
-            .then(r => r.json())
-            .then(d => { if (d.success && d.booking) assignRider(d.booking); else startRiderCheck(); })
-            .catch(() => startRiderCheck());
+
+        // Pre-apply saved delivery status to avoid regression flash while waiting for fetch
+        if (saved.status === 'assigned' && saved.deliveryStatus && saved.deliveryStatus !== 'waiting_for_rider') {
+          ensureRiderCard({ rider_name: 'Your Rider', rider_phone: '' });
+          syncRiderUIWithStatus({ status: 'assigned', delivery_status: saved.deliveryStatus });
         } else if (saved.status === 'delivered') {
-          showCompletedReceipt(saved);
-        } else if (saved.status === 'pending' || saved.status === 'claimed') {
-          showCancelButton();
-          startRiderCheck();
-        } else {
-          startRiderCheck();
+          showCompletedReceipt();
         }
+
+        // Always fetch latest status and then re-sync
+        fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.success && data.booking) {
+              const b = data.booking;
+              if (b.status === 'delivered') {
+                showCompletedReceipt(b);
+                saveOrderState({ orderId: currentOrderId, status: 'delivered', deliveryStatus: 'delivered' });
+                return;
+              }
+              if (b.status === 'assigned' || b.status === 'confirmed' ||
+                  b.delivery_status === 'rider_assigned' || b.delivery_status === 'on_the_way' ||
+                  (b.rider_name && b.rider_name.trim() !== '')) {
+                assignRider(b); // will sync to b.delivery_status
+              } else if (saved.status === 'pending') {
+                showCancelButton();
+                startRiderCheck();
+              } else {
+                startRiderCheck();
+              }
+            } else {
+              // Fallback to saved state
+              if (saved.status === 'assigned') {
+                ensureRiderCard({ rider_name: 'Your Rider', rider_phone: '' });
+                if (saved.deliveryStatus) {
+                  syncRiderUIWithStatus({ status: 'assigned', delivery_status: saved.deliveryStatus });
+                }
+                startRiderCheck();
+              } else if (saved.status === 'delivered') {
+                showCompletedReceipt();
+              } else {
+                showCancelButton();
+                startRiderCheck();
+              }
+            }
+          })
+          .catch(() => {
+            // Network failure: still show saved state
+            if (saved.status === 'assigned') {
+              ensureRiderCard({ rider_name: 'Your Rider', rider_phone: '' });
+              if (saved.deliveryStatus) {
+                syncRiderUIWithStatus({ status: 'assigned', delivery_status: saved.deliveryStatus });
+              }
+            } else if (saved.status === 'pending') {
+              showCancelButton();
+            }
+            startRiderCheck();
+          });
       } catch {}
+    }
+    
+    // Replace/ensure: saveOrderState stores deliveryStatus too
+    function saveOrderState(state) {
+      try {
+        const toSave = {
+          orderId: (state && state.orderId) || currentOrderId,
+          status: state && state.status,
+          deliveryStatus: (state && state.deliveryStatus) || lastKnownDeliveryStatus || (state && state.delivery_status) || null,
+          booking: (state && state.booking) || lastBookingDetails
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+      } catch (e) {
+        console.warn('saveOrderState failed', e);
+      }
     }
     
     function stopMessageIntervalOnly() {
@@ -1324,6 +1402,209 @@
     
     function goBack() {
       window.location.href = 'index.html';
+    }
+
+    // Add missing placeNewOrder function
+    window.placeNewOrder = function() {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        stopIntervals();
+      } catch (_) {}
+      // Reload to bring back the form
+      window.location.href = 'index.html';
+    };
+
+    // Add notification permission check function
+    function checkNotificationPermission() {
+      if (!('Notification' in window)) {
+        console.warn('This browser does not support notifications.');
+        return;
+      }
+
+      if (Notification.permission === 'default') {
+        const confirmNotifications = confirm('Would you like to receive notifications about your delivery status?');
+        if (confirmNotifications) {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              console.log('Notifications enabled.');
+              showNotification('Notifications enabled for delivery updates!');
+            } else {
+              console.warn('Notifications not enabled.');
+            }
+          });
+        }
+      }
+    }
+
+    // Add a showNotification function if it doesn't exist
+    function showNotification(message, isError = false) {
+      // Check if an existing notification container exists
+      let notification = document.getElementById('notification');
+      
+      // Create it if it doesn't exist
+      if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'notification';
+        notification.style.position = 'fixed';
+        notification.style.top = '20px';
+        notification.style.right = '20px';
+        notification.style.padding = '15px 20px';
+        notification.style.borderRadius = '10px';
+        notification.style.color = 'white';
+        notification.style.boxShadow = '0 5px 15px rgba(0,0,0,0.2)';
+        notification.style.transform = 'translateX(400px)';
+        notification.style.transition = 'transform 0.3s ease';
+        notification.style.zIndex = '1001';
+        document.body.appendChild(notification);
+      }
+      
+      // Set notification style based on type
+      notification.style.background = isError ? '#ef4444' : '#10b981';
+      notification.textContent = message;
+      
+      // Show notification
+      setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+      }, 10);
+      
+      // Hide notification after 3 seconds
+      setTimeout(() => {
+        notification.style.transform = 'translateX(400px)';
+      }, 3000);
+    }
+
+    // Call this function on page load to check for existing permissions
+    document.addEventListener('DOMContentLoaded', function() {
+      // Existing initialization code
+      // ...existing code...
+      
+      // Guard Notification API to avoid ReferenceError on unsupported browsers
+      if ('Notification' in window && Notification.permission === 'granted') {
+        console.log('Notifications already enabled.');
+      }
+    });
+
+    // Ensure confirmDelivery is globally accessible for inline onclick handlers
+    window.confirmDelivery = function(btn) {
+      try {
+        // disable clicked button immediately
+        if (btn) {
+          btn.disabled = true;
+          btn.dataset.origText = btn.textContent;
+          btn.textContent = 'Processing...';
+        }
+        
+        fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'complete_booking', order_id: currentOrderId })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            // persist final state to prevent regress on reload
+            saveOrderState({ orderId: currentOrderId, status: 'delivered', deliveryStatus: 'delivered' });
+            const statusEl = document.getElementById('riderStatusText');
+            if (statusEl) statusEl.textContent = 'Status: Completed';
+            const progressFill = document.getElementById('riderProgressFill');
+            if (progressFill) progressFill.style.width = '100%';
+            showCompletedReceipt(data);
+            if (typeof stopIntervals === 'function') stopIntervals();
+          } else {
+            alert('Error completing order: ' + data.message);
+            if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || 'Confirm Parcel Delivery Received'; }
+          }
+        })
+        .catch(err => {
+          console.error('Error:', err);
+          alert('Error completing order. Please try again.');
+          if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || 'Confirm Parcel Delivery Received'; }
+        });
+      } catch (e) {
+        console.error('confirmDelivery error', e);
+        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || 'Confirm Parcel Delivery Received'; }
+      }
+    };
+
+    // Ensure startMessagesPolling exists to avoid ReferenceError if not provided by another script
+    if (typeof window.startMessagesPolling !== 'function') {
+      window.startMessagesPolling = function() {};
+    }
+
+    // Update showCompletedReceipt to include more complete receipt information
+    window.showCompletedReceipt = function(payload) {
+      try {
+        // Stop background timers
+        if (typeof stopIntervals === 'function') stopIntervals();
+
+        // Persist final state
+        saveOrderState({ orderId: currentOrderId, status: 'delivered', deliveryStatus: 'delivered' });
+
+        // Update top status
+        const riderStatus = document.getElementById('riderStatus');
+        if (riderStatus) {
+          riderStatus.innerHTML = '<span class="status-indicator status-assigned"></span> Delivery completed.';
+        }
+
+        // Hide actions and summary
+        const actions = document.getElementById('orderActions');
+        if (actions) actions.style.display = 'none';
+
+        // Show completion card with more detailed receipt information
+        const message = (payload && payload.message) ? payload.message : 'Your parcel has been delivered successfully.';
+        const completed = document.getElementById('completedMessage');
+        if (completed) {
+          completed.innerHTML = `
+            <div class="completed-message">
+              <h3>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px;">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22,4 12,14.01 9,11.01"/>
+                </svg>
+                Parcel Delivery Completed!
+              </h3>
+              <p>Thank you for using Aup Grab. ${message}</p>
+              <p style="margin-top: 15px;">Order ID: <strong>${currentOrderId}</strong></p>
+              <div style="margin-top:16px;">
+                <button class="confirm-btn" onclick="placeNewOrder()">Place New Booking</button>
+              </div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        console.warn('showCompletedReceipt error', e);
+      }
+    };
+
+    // NEW: match food.html "delivered_by_rider" UI (banner + big confirm button)
+    function updateOrderActions(deliveryStatus) {
+      const actionsEl = document.getElementById('orderActions');
+      if (!actionsEl) return;
+
+      if (deliveryStatus === 'delivered_by_rider') {
+        actionsEl.innerHTML = `
+          <div style="text-align: center; margin-bottom: 15px;">
+            <div style="color: #2d5016; font-weight: bold; margin-bottom: 10px; font-size: 16px;">
+              ✓ Your parcel has been delivered!
+            </div>
+            <div style="color: #666; margin-bottom: 15px;">
+              Please confirm when you have received your parcel
+            </div>
+          </div>
+          <button class="confirm-btn"
+                  style="background: linear-gradient(135deg, #ad7b05, #c9b820); width: 100%; padding: 16px; font-size: 16px; animation: pulse 2s infinite; transform: scale(1.05); box-shadow: 0 4px 12px rgba(173, 123, 5, 0.3);"
+                  onclick="confirmDelivery(this)">
+            Confirm Parcel Delivery Received
+          </button>
+        `;
+      } else if (!actionsEl.innerHTML.includes('confirm-btn')) {
+        // Fallback: keep a plain confirm button if not yet present
+        actionsEl.innerHTML = `
+          <button class="confirm-btn" onclick="confirmDelivery(this)">
+            Confirm Parcel Delivery Received
+          </button>
+        `;
+      }
     }
   </script>
   <script src="info-modal.js"></script>
