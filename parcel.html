@@ -420,10 +420,12 @@
       .container {
         margin: 10px;
         border-radius: 15px;
+        width: 100%;
+        max-width: 100%;
       }
       
       .form-container {
-        padding: 30px 20px;
+        padding: 20px 15px;
       }
       
       .form-row {
@@ -436,7 +438,8 @@
       }
       
       .quantity-group {
-        justify-content: center;
+        justify-content: flex-start;
+        flex-wrap: wrap;
       }
       
       .back-btn {
@@ -444,36 +447,182 @@
         padding: 8px 12px;
         font-size: 14px;
       }
+      
+      input, select, textarea {
+        font-size: 16px; /* Prevents iOS zoom on focus */
+        padding: 12px;
+      }
+      
+      .submit-btn {
+        padding: 16px;
+        font-size: 16px;
+      }
+      
+      .rider-option label {
+        padding: 5px 0;
+      }
+      
+      /* Improved touch targets */
+      .count-btn, .count-minus, .count-plus {
+        min-width: 36px;
+        min-height: 36px;
+      }
+      
+      .quantity-btn {
+        width: 44px;
+        height: 44px;
+      }
     }
 
-    /* Mobile adjustments for rider info (small phones) */
+    /* Small phones (iPhone SE, etc) */
     @media (max-width: 420px) {
       /* Header: use grid to avoid overlaps */
       .header {
         padding: 16px;
         text-align: center;
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: auto 1fr auto;
+        grid-template-areas: 
+          "back title info"
+          "icon icon icon"
+          "desc desc desc";
         row-gap: 8px;
+        align-items: center;
       }
-      .back-btn, .info-btn { position: static; transform: none; padding: 8px 12px; font-size: 14px; }
-      .back-btn { justify-self: start; }
-      .info-btn { justify-self: end; }
-      .header-icon { grid-column: 1 / -1; }
-      .header h1 { grid-column: 1 / -1; font-size: 1.4rem; margin: 4px 0; }
-      .header p { grid-column: 1 / -1; font-size: 0.95rem; }
-      .rider-info .rider-grid { grid-template-columns: 56px 1fr; gap: 12px; }
-      .rider-info .avatar { width: 56px; height: 56px; font-size: 1rem; }
-      .rider-details { font-size: 0.95rem; word-break: break-word; }
-      .rider-info .rider-actions { flex-direction: column; gap: 8px; }
-      .rider-info .rider-actions .contact-btn { width: 100%; text-align: center; }
+      
+      .back-btn { 
+        grid-area: back;
+        position: static; 
+        transform: none; 
+        padding: 8px 12px; 
+        font-size: 14px;
+        justify-self: start;
+      }
+      
+      .info-btn { 
+        grid-area: info;
+        position: static; 
+        transform: none; 
+        padding: 8px 12px; 
+        font-size: 14px;
+        justify-self: end;
+      }
+      
+      .header-icon { 
+        grid-area: icon;
+        margin-bottom: 10px;
+        margin-top: 5px;
+      }
+      
+      .header h1 { 
+        grid-area: title;
+        font-size: 1.4rem; 
+        margin: 0;
+        justify-self: center;
+      }
+      
+      .header p { 
+        grid-area: desc;
+        font-size: 0.95rem; 
+      }
+      
+      /* Improved form layout */
+      .form-group {
+        margin-bottom: 20px;
+      }
+      
+      label {
+        font-size: 0.95rem;
+        margin-bottom: 6px;
+      }
+      
+      /* Smaller input height */
+      input, select {
+        height: 44px;
+      }
+      
+      /* Fix rider option layout */
+      .rider-option {
+        padding: 10px 8px;
+      }
+      
+      .rider-option label {
+        gap: 4px;
+      }
+      
+      .rider-count {
+        width: 50px !important; 
+      }
+      
+      /* Larger buttons for better touch */
+      .submit-btn {
+        padding: 14px;
+        border-radius: 10px;
+      }
+      
+      /* Status section improvements */
+      .status-section {
+        padding: 20px 15px;
+      }
+      
+      .rider-info .rider-grid { 
+        grid-template-columns: 50px 1fr; 
+        gap: 10px; 
+      }
+      
+      .rider-info .avatar { 
+        width: 50px; 
+        height: 50px; 
+        font-size: 1rem; 
+      }
+      
+      .rider-details { 
+        font-size: 0.9rem; 
+      }
+      
+      .rider-info .rider-actions { 
+        flex-direction: column; 
+        gap: 8px; 
+        margin-top: 10px;
+      }
+      
+      .contact-btn { 
+        width: 100%; 
+        text-align: center; 
+        padding: 12px;
+      }
     }
 
-    /* Add this CSS to the document head to enable the pulsing animation */
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
-      70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+    /* Very small phones */
+    @media (max-width: 359px) {
+      .header h1 {
+        font-size: 1.2rem;
+      }
+      
+      .header p {
+        font-size: 0.85rem;
+      }
+      
+      .back-btn, .info-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+      
+      .user-session {
+        padding: 10px;
+      }
+      
+      .user-id {
+        font-size: 0.8rem;
+        padding: 3px 6px;
+      }
+      
+      /* Stacked payment method selection */
+      .payment-cost-group div[style*="display: flex; gap: 20px"] {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
     }
   </style>
 </head>
@@ -718,7 +867,7 @@
   
   <script>
     // REPLACE WITH YOUR GOOGLE APP SCRIPT URL
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv69YVjiAxzYteFo7tl4LGVecznj35_kRYY4_Eca3IPmAnOouSQgTIwTqdXESQOrEP2A/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzBOyI8Jo61xnbVHFmPB3SgvaT9g0iUtIU3T1cP5O9JZbvawZ1c3HyZrJrH6dfn035N4A/exec';
     
     let userSessionId = null;
     let currentOrderId = null;
@@ -761,18 +910,18 @@
         const count = option.querySelector('.rider-count');
         if (!check || !count) return;
 
-        // Add +/- controls next to each count input
+        // Add +/- controls next to each count input with improved sizing
         const minusBtn = document.createElement('button');
         minusBtn.type = 'button';
         minusBtn.textContent = '−';
         minusBtn.className = 'count-btn count-minus';
-        minusBtn.style.cssText = 'margin-left:6px; width:28px; height:28px; border-radius:6px; border:none; background:#eee; color:#000;';
+        minusBtn.style.cssText = 'margin-left:6px; width:36px; height:36px; border-radius:6px; border:none; background:#eee; color:#000;';
 
         const plusBtn = document.createElement('button');
         plusBtn.type = 'button';
         plusBtn.textContent = '+';
         plusBtn.className = 'count-btn count-plus';
-        plusBtn.style.cssText = 'margin-left:4px; width:28px; height:28px; border-radius:6px; border:none; background:#eee; color:#000;';
+        plusBtn.style.cssText = 'margin-left:4px; width:36px; height:36px; border-radius:6px; border:none; background:#eee; color:#000;';
 
         // Insert buttons after the input
         count.parentNode.insertBefore(minusBtn, count.nextSibling);
