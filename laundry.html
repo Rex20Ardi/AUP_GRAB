@@ -1116,66 +1116,63 @@
         if (!raw) return;
         const saved = JSON.parse(raw);
         if (!saved || !saved.orderId) return;
-        currentOrderId = saved.orderId;
-        lastKnownDeliveryStatus = saved.deliveryStatus || null;
-
-        document.getElementById('statusSection').style.display = 'block';
-        document.getElementById('orderIdDisplay').innerHTML = `
-          <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
-          <div class="order-id">${currentOrderId}</div>`;
-        if (saved.booking) {
-          lastBookingDetails = saved.booking;
-          showBookingSummary(saved.booking);
-        }
-        disableForm();
-
-        // Pre-apply saved delivery status to avoid regression flash while waiting for fetch
-        if (saved.status === 'assigned' && saved.deliveryStatus && saved.deliveryStatus !== 'waiting_for_rider') {
-          ensureRiderCard({ rider_name: 'Your Rider', rider_phone: '' });
-          syncRiderUIWithStatus({ status: 'assigned', delivery_status: saved.deliveryStatus });
-        } else if (saved.status === 'delivered') {
-          showCompletedReceipt();
-        }
-
-        // Always fetch latest status and then re-sync
-        fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${currentOrderId}&ts=${Date.now()}`)
+        
+        // Validate if the order still exists on the server before disabling the form
+        fetch(`${SCRIPT_URL}?action=get_booking_status&order_id=${saved.orderId}&ts=${Date.now()}`)
           .then(r => r.json())
           .then(d => {
-            if (d.success && d.booking) {
-              const b = d.booking;
-              if (b.status === 'delivered') {
-                showCompletedReceipt();
-                saveOrderState({ orderId: currentOrderId, status: 'delivered', deliveryStatus: 'delivered' });
-                return;
-              }
-              if (b.status === 'assigned' || b.status === 'confirmed' ||
-                  b.delivery_status === 'rider_assigned' || b.delivery_status === 'on_the_way' ||
-                  (b.rider_name && b.rider_name.trim() !== '')) {
-                assignRider(b); // will sync to b.delivery_status
-              } else if (saved.status === 'pending') {
-                showCancelButton();
-                startRiderCheck();
-              } else {
-                startRiderCheck();
-              }
+            // If order doesn't exist on server (404/not found response) or invalid format,
+            // allow user to create a new booking by not doing anything
+            if (!d || !d.success || !d.booking) {
+              console.log("Stored order not found on server, allowing new booking");
+              return; // Don't disable form or restore UI state
+            }
+            
+            // Order exists, proceed with normal restore flow
+            currentOrderId = saved.orderId;
+            lastKnownDeliveryStatus = saved.deliveryStatus || null;
+
+            document.getElementById('statusSection').style.display = 'block';
+            document.getElementById('orderIdDisplay').innerHTML = `
+              <div style="font-size: 14px; margin-bottom: 10px;">Your Order ID:</div>
+              <div class="order-id">${currentOrderId}</div>`;
+            if (saved.booking) {
+              lastBookingDetails = saved.booking;
+              showBookingSummary(saved.booking);
+            }
+            disableForm();
+
+            // ...existing code for status handling...
+            const b = d.booking;
+            if (b.status === 'delivered') {
+              showCompletedReceipt();
+              saveOrderState({ orderId: currentOrderId, status: 'delivered', deliveryStatus: 'delivered' });
+              return;
+            }
+            if (b.status === 'assigned' || b.status === 'confirmed' ||
+                b.delivery_status === 'rider_assigned' || b.delivery_status === 'on_the_way' ||
+                (b.rider_name && b.rider_name.trim() !== '')) {
+              assignRider(b); // will sync to b.delivery_status
+            } else if (saved.status === 'pending') {
+              showCancelButton();
+              startRiderCheck();
             } else {
-              // Fallback to saved state
-              if (saved.status === 'assigned') {
-                ensureRiderCard({ rider_name: 'Your Rider', rider_phone: '' });
-                if (saved.deliveryStatus) {
-                  syncRiderUIWithStatus({ status: 'assigned', delivery_status: saved.deliveryStatus });
-                }
-                startRiderCheck();
-              } else if (saved.status === 'delivered') {
-                showCompletedReceipt();
-              } else {
-                showCancelButton();
-                startRiderCheck();
-              }
+              startRiderCheck();
             }
           })
           .catch(() => {
-            // ...existing fallback if fetch fails...
+            // On network error, continue with local data but check if it's recent
+            // Don't restore if data is over 1 day old
+            const timestamp = saved.timestamp ? new Date(saved.timestamp) : null;
+            const oneDayAgo = new Date();
+            oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+            
+            if (!timestamp || timestamp < oneDayAgo) {
+              console.log("Stored order is too old, allowing new booking");
+              return; // Don't disable form for old data
+            }
+            
+            // Fallback to saved state
             if (saved.status === 'assigned') {
               ensureRiderCard({ rider_name: 'Your Rider', rider_phone: '' });
               if (saved.deliveryStatus) {
