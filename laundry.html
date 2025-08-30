@@ -256,6 +256,141 @@
       .rider-info .rider-actions .contact-btn { width: 100%; text-align: center; }
     }
     
+    /* Enhanced Mobile Responsiveness for Rider Assignment Area */
+    @media (max-width: 768px) {
+      /* Improve rider info card for mobile - prevent overlapping */
+      .rider-info {
+        padding: 20px 15px;
+        margin: 15px 0;
+      }
+      
+      /* More compact rider grid layout */
+      .rider-info .rider-grid {
+        grid-template-columns: 60px 1fr;
+        gap: 12px;
+      }
+      
+      /* Make avatar smaller on medium-sized screens */
+      .rider-info .avatar {
+        width: 60px !important;
+        height: 60px !important;
+      }
+      
+      /* More compact messaging area */
+      #messagesContainer {
+        margin-top: 10px !important;
+      }
+      
+      #messagesList {
+        max-height: 140px !important;
+        font-size: 14px;
+      }
+      
+      /* Ensure rider details don't overflow */
+      .rider-details {
+        font-size: 0.95rem;
+        line-height: 1.4;
+        word-break: break-word;
+        margin: 6px 0;
+      }
+    }
+
+    /* More aggressive adjustments for very small screens */
+    @media (max-width: 420px) {
+      /* Properly scale down rider card */
+      .rider-info {
+        padding: 15px 12px;
+      }
+      
+      /* More compact avatar */
+      .rider-info .rider-grid {
+        grid-template-columns: 45px 1fr !important;
+        gap: 10px !important;
+      }
+      
+      .rider-info .avatar {
+        width: 45px !important;
+        height: 45px !important;
+        font-size: 0.9rem !important;
+      }
+      
+      /* Better name/title layout for small screens */
+      .rider-info .name-row {
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 4px;
+      }
+      
+      .rider-info .name-row h3 {
+        font-size: 1.1rem;
+        line-height: 1.2;
+      }
+      
+      /* Adjust icon sizes in rider details */
+      .rider-details svg {
+        width: 14px !important;
+        height: 14px !important;
+        margin-right: 6px !important;
+      }
+      
+      /* Stack actions vertically and make them full width */
+      .rider-info .rider-actions {
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      
+      .rider-info .rider-actions .contact-btn {
+        width: 100%;
+        text-align: center;
+        padding: 12px;
+      }
+      
+      /* Make the message container more compact */
+      #messagesContainer {
+        margin-top: 12px !important;
+      }
+      
+      #messagesList {
+        max-height: 120px !important;
+        padding: 8px !important;
+      }
+      
+      /* Ensure confirm button is properly sized for touch */
+      .confirm-btn {
+        padding: 14px 15px;
+        font-size: 15px;
+        width: 100%;
+      }
+      
+      /* Make progress bar more visible on small screens */
+      .progress-track {
+        height: 6px;
+      }
+    }
+
+    /* Extra small devices like iPhone SE */
+    @media (max-width: 360px) {
+      .rider-info {
+        padding: 12px 10px;
+      }
+      
+      .rider-info .rider-grid {
+        grid-template-columns: 40px 1fr !important;
+        gap: 8px !important;
+      }
+      
+      .rider-info .avatar {
+        width: 40px !important;
+        height: 40px !important;
+      }
+      
+      .rider-details {
+        font-size: 0.85rem;
+        margin: 4px 0;
+      }
+    }
+    
     .submit-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 20px rgba(156, 39, 176, 0.3);
