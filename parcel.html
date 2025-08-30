@@ -815,6 +815,17 @@
     </div>
   </div>
   
+  <!-- Add audio elements for sound notifications -->
+  <audio id="assignedSound" preload="auto">
+    <source src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=notification-sound-7062.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="claimedSound" preload="auto">
+    <source src="https://cdn.pixabay.com/download/audio/2021/08/09/audio_8a095954ae.mp3?filename=intuition-561.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="deliveredSound" preload="auto">
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/10/audio_81080c3e5d.mp3?filename=message-ringtone-126336.mp3" type="audio/mpeg">
+  </audio>
+  
   <script>
     // REPLACE WITH YOUR GOOGLE APP SCRIPT URL
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv69YVjiAxzYteFo7tl4LGVecznj35_kRYY4_Eca3IPmAnOouSQgTIwTqdXESQOrEP2A/exec';
@@ -828,11 +839,88 @@
     const STORAGE_KEY = 'currentParcelOrder';
     let lastKnownDeliveryStatus = null;
     
+    // Add sound notification settings with default as enabled
+    let soundNotificationsEnabled = localStorage.getItem('soundNotificationsEnabled') !== 'false';
+    let lastNotifiedStatus = null; // Track last status we notified for to prevent duplicate sounds
+    
     // Initialize session
     window.onload = function() {
       initializeSession();
       setupEventListeners();
       restoreFromStorage();
+      
+      // Initialize sound toggle in settings UI if it exists
+      const soundToggle = document.getElementById('sound-notifications-toggle');
+      if (soundToggle) {
+        soundToggle.checked = soundNotificationsEnabled;
+      }
+    };
+    
+    // Add function to play sound notifications based on status
+    function playStatusSound(status) {
+      if (!soundNotificationsEnabled) return;
+      if (status === lastNotifiedStatus) return; // Prevent duplicate sounds
+      
+      lastNotifiedStatus = status;
+      let sound;
+      
+      switch(status) {
+        case 'assigned':
+        case 'rider_assigned':
+          sound = document.getElementById('assignedSound');
+          break;
+        case 'item_claimed':
+        case 'claimed':
+          sound = document.getElementById('claimedSound');
+          break;
+        case 'delivered_by_rider':
+          sound = document.getElementById('deliveredSound');
+          break;
+        default:
+          return; // No sound for other statuses
+      }
+      
+      if (sound) {
+        // Reset the audio to the beginning if it was already playing
+        sound.pause();
+        sound.currentTime = 0;
+        
+        // Play the sound
+        sound.play().catch(err => {
+          console.warn('Could not play notification sound:', err);
+          // Some browsers require user interaction before playing audio
+        });
+      }
+    }
+    
+    // Add a function to toggle sound notifications
+    function toggleSoundNotifications(enable) {
+      soundNotificationsEnabled = enable !== undefined ? enable : !soundNotificationsEnabled;
+      localStorage.setItem('soundNotificationsEnabled', soundNotificationsEnabled);
+      
+      // Update UI toggle if exists
+      const soundToggle = document.getElementById('sound-notifications-toggle');
+      if (soundToggle) {
+        soundToggle.checked = soundNotificationsEnabled;
+      }
+      
+      // Show notification about the change
+      showNotification(`Sound notifications ${soundNotificationsEnabled ? 'enabled' : 'disabled'}`);
+      
+      return soundNotificationsEnabled;
+    }
+    
+    // Initialize session
+    window.onload = function() {
+      initializeSession();
+      setupEventListeners();
+      restoreFromStorage();
+      
+      // Initialize sound toggle in settings UI if it exists
+      const soundToggle = document.getElementById('sound-notifications-toggle');
+      if (soundToggle) {
+        soundToggle.checked = soundNotificationsEnabled;
+      }
     };
     
     function initializeSession() {
@@ -1313,6 +1401,9 @@
         lastKnownDeliveryStatus = effectiveStatus;
         // do not alter other fields; only store deliveryStatus progression
         saveOrderState({ orderId: currentOrderId, status: booking.status || 'assigned', deliveryStatus: effectiveStatus });
+        
+        // Play sound notification for the status change
+        playStatusSound(effectiveStatus);
       }
 
       // Final completion guard
@@ -1338,6 +1429,10 @@
 
     function assignRider(booking) {
       saveOrderState({ orderId: currentOrderId, status: 'assigned', deliveryStatus: booking.delivery_status || lastKnownDeliveryStatus || 'rider_assigned' });
+      
+      // Play assigned sound when a rider is assigned for the first time
+      playStatusSound('assigned');
+      
       document.getElementById('riderStatus').innerHTML = `
         <span class="status-indicator status-assigned"></span>
         Rider assigned!
@@ -1624,17 +1719,17 @@
             if (typeof stopIntervals === 'function') stopIntervals();
           } else {
             alert('Error completing order: ' + data.message);
-            if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || 'Confirm Parcel Delivery Received'; }
+            if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
           }
         })
         .catch(err => {
           console.error('Error:', err);
           alert('Error completing order. Please try again.');
-          if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || 'Confirm Parcel Delivery Received'; }
+          if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
         });
       } catch (e) {
         console.error('confirmDelivery error', e);
-        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || 'Confirm Parcel Delivery Received'; }
+        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
       }
     };
 
