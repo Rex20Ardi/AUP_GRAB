@@ -409,41 +409,22 @@
     </div>
   </div>
   
-  <script>
-    function navigateToBooking(service) {
-      // Add a smooth transition effect
-      const card = event.currentTarget;
-      card.style.transform = 'scale(0.95)';
-      card.style.transition = 'transform 0.2s ease';
-      
-      setTimeout(() => {
-        // Navigate to the appropriate booking page
-        window.location.href = `${service}.html`;
-      }, 200);
-    }
-    
-    // Add some interactive effects
-    document.addEventListener('DOMContentLoaded', function() {
-      const cards = document.querySelectorAll('.option-card');
-      
-      cards.forEach(card => {
-        card.addEventListener('mouseenter', function() {
-          this.style.transform = 'translateY(-10px) scale(1.02)';
-        });
-        
-        card.addEventListener('mouseleave', function() {
-          this.style.transform = 'translateY(0) scale(1)';
-        });
-      });
-    });
-    
-    // Add keyboard navigation
-    document.addEventListener('keydown', function(e) {
-      if (e.key === '1') navigateToBooking('parcel');
-      if (e.key === '2') navigateToBooking('food');
-      if (e.key === '3') navigateToBooking('laundry');
-    });
-  </script>
+  <!-- Rider Availability Modal (shown first if no active riders) -->
+  <div id="riderAvailabilityModal" class="modal-overlay" style="display:none;">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="riderAvailabilityTitle">
+      <div class="modal-header">
+        <h3 id="riderAvailabilityTitle">No Available Riders</h3>
+      </div>
+      <div class="modal-body">
+        <p id="availabilityMain">No available rider at the moment. Please try again later.</p>
+        <p id="availabilitySub" style="color:#666; font-size:0.95rem; margin-top:6px;"></p>
+      </div>
+      <div class="modal-actions" style="padding:16px 20px 20px; display:flex; justify-content:flex-end; gap:8px;">
+        <button class="close-btn" onclick="retryAvailability()">Retry</button>
+        <button class="close-btn" onclick="closeAvailabilityModal()">OK</button>
+      </div>
+    </div>
+  </div>
 
   <!-- New: Instructions Modal (shown on every open) -->
   <div id="instructionsModal" class="modal-overlay">
@@ -492,6 +473,138 @@
     </div>
   </div>
 
+  <script>
+    // Add backend URL and a booking gate
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv69YVjiAxzYteFo7tl4LGVecznj35_kRYY4_Eca3IPmAnOouSQgTIwTqdXESQOrEP2A/exec';
+    let bookingAllowed = false;
+
+    // Consider rider status stale after this TTL (ms)
+    const RIDER_ACTIVE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+    // Helpers to normalize Google Sheet values
+    function toBool(v) {
+      if (typeof v === 'boolean') return v;
+      if (typeof v === 'number') return v === 1;
+      if (typeof v === 'string') {
+        const s = v.trim().toLowerCase();
+        return s === '1' || s === 'true' || s === 'yes' || s === 'y';
+      }
+      return false;
+    }
+    function isFresh(ts) {
+      if (!ts) return true; // if no timestamp, assume fresh
+      const t = new Date(ts).getTime();
+      if (isNaN(t)) return true;
+      return (Date.now() - t) <= RIDER_ACTIVE_TTL_MS;
+    }
+
+    // Check rider availability via backend reading Google Sheet
+    async function checkRidersActive() {
+      try {
+        const res = await fetch(`${SCRIPT_URL}?action=get_rider_statuses&ts=${Date.now()}`, { cache: 'no-cache' });
+        const data = await res.json();
+
+        // Accept both map and array shapes
+        let entries = [];
+        if (data && data.success) {
+          if (Array.isArray(data.riders)) {
+            entries = data.riders;
+          } else if (data.riders && typeof data.riders === 'object') {
+            entries = Object.values(data.riders);
+          }
+        }
+        // Evaluate active + freshness
+        const anyActive = entries.some(r => r && toBool(r.active) && isFresh(r.last_updated));
+        return { ok: true, anyActive };
+      } catch (e) {
+        return { ok: false, anyActive: false, err: e };
+      }
+    }
+
+    // Show rider availability modal (with optional message)
+    function showAvailabilityModal(message, subNote) {
+      const modal = document.getElementById('riderAvailabilityModal');
+      if (!modal) return;
+      const main = document.getElementById('availabilityMain');
+      const sub = document.getElementById('availabilitySub');
+      if (message) main.textContent = message;
+      if (sub) sub.textContent = subNote || '';
+      modal.style.display = 'flex';
+      setTimeout(() => {
+        const btn = modal.querySelector('.close-btn');
+        if (btn) btn.focus();
+      }, 0);
+    }
+
+    function closeAvailabilityModal() {
+      const modal = document.getElementById('riderAvailabilityModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function retryAvailability() {
+      closeAvailabilityModal();
+      openAvailabilityCheck();
+    }
+
+    // Open availability check first; only show instructions if riders available
+    function openAvailabilityCheck() {
+      // Show a subtle message while checking
+      showAvailabilityModal('Checking rider availability...', 'Please wait.');
+      checkRidersActive().then(result => {
+        closeAvailabilityModal();
+        if (result.ok && result.anyActive) {
+          bookingAllowed = true;
+          openInstructions(); // show instructions as usual
+        } else if (result.ok && !result.anyActive) {
+          bookingAllowed = false;
+          showAvailabilityModal('No available rider at the moment. Please try again later.');
+        } else {
+          bookingAllowed = false;
+          showAvailabilityModal('Could not verify rider availability.', 'Please check your internet connection and try again.');
+        }
+      });
+    }
+
+    function navigateToBooking(service) {
+      // Block booking when no riders are active
+      if (!bookingAllowed) {
+        showAvailabilityModal('No available rider at the moment. Please try again later.');
+        return;
+      }
+      // Add a smooth transition effect
+      const card = event.currentTarget;
+      card.style.transform = 'scale(0.95)';
+      card.style.transition = 'transform 0.2s ease';
+      setTimeout(() => { window.location.href = `${service}.html`; }, 200);
+    }
+    
+    // Keep existing interactivity
+    document.addEventListener('DOMContentLoaded', function() {
+      const cards = document.querySelectorAll('.option-card');
+      
+      cards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+          this.style.transform = 'translateY(-10px) scale(1.02)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+          this.style.transform = 'translateY(0) scale(1)';
+        });
+      });
+    });
+    
+    // Keyboard navigation should also respect the booking gate
+    document.addEventListener('keydown', function(e) {
+      if (!bookingAllowed) {
+        if (e.key === '1' || e.key === '2' || e.key === '3') showAvailabilityModal('No available rider at the moment. Please try again later.');
+        return;
+      }
+      if (e.key === '1') navigateToBooking('parcel');
+      if (e.key === '2') navigateToBooking('food');
+      if (e.key === '3') navigateToBooking('laundry');
+    });
+  </script>
+
   <!-- New: show/hide logic for Instructions modal (always show on open) -->
   <script>
     function openInstructions() {
@@ -499,18 +612,8 @@
         const modal = document.getElementById('instructionsModal');
         if (!modal) return;
         modal.style.display = 'flex';
-        // Focus OK button
-        setTimeout(() => {
-          const btn = modal.querySelector('.close-btn');
-          if (btn) btn.focus();
-        }, 0);
-
-        // Close on Enter or Escape
-        const keyHandler = (e) => {
-          if (e.key === 'Enter' || e.key === 'Escape') {
-            closeInstructions();
-          }
-        };
+        setTimeout(() => { const btn = modal.querySelector('.close-btn'); if (btn) btn.focus(); }, 0);
+        const keyHandler = (e) => { if (e.key === 'Enter' || e.key === 'Escape') { closeInstructions(); } };
         modal.dataset.bound = '1';
         document.addEventListener('keydown', keyHandler, { once: true });
       } catch (_) {}
@@ -521,11 +624,11 @@
       if (modal) modal.style.display = 'none';
     }
 
-    // Ensure it shows every time the page is opened
+    // IMPORTANT: Run availability check first; only then possibly show instructions
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', openInstructions);
+      document.addEventListener('DOMContentLoaded', openAvailabilityCheck);
     } else {
-      openInstructions();
+      openAvailabilityCheck();
     }
   </script>
   <script src="info-modal.js"></script>
