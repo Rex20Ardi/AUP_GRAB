@@ -444,6 +444,28 @@
       if (e.key === '3') navigateToBooking('laundry');
     });
   </script>
+
+  <!-- New: Instructions Modal (shown on every open) -->
+  <div id="instructionsModal" class="modal-overlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="instructionsTitle">
+      <div class="modal-header">
+        <h3 id="instructionsTitle">Instructions</h3>
+      </div>
+      <div class="modal-body">
+        <ul>
+          <li>Open this site in your browser.</li>
+          <li>Keep track of your booking.</li>
+          <li>Ensure your phone has a signal — the rider will contact you there.</li>
+          <li>Always confirm delivery once your booking is completed.</li>
+          <li>If you reload the site, please wait — your booking will reappear shortly.</li>
+        </ul>
+      </div>
+      <div class="modal-actions" style="padding:16px 20px 20px; display:flex; justify-content:flex-end;">
+        <button class="close-btn" onclick="closeInstructions()">OK</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Info Modal -->
   <div id="infoModal" class="modal-overlay" onclick="overlayClick(event)">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
@@ -469,9 +491,45 @@
       </div>
     </div>
   </div>
+
+  <!-- New: show/hide logic for Instructions modal (always show on open) -->
+  <script>
+    function openInstructions() {
+      try {
+        const modal = document.getElementById('instructionsModal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        // Focus OK button
+        setTimeout(() => {
+          const btn = modal.querySelector('.close-btn');
+          if (btn) btn.focus();
+        }, 0);
+
+        // Close on Enter or Escape
+        const keyHandler = (e) => {
+          if (e.key === 'Enter' || e.key === 'Escape') {
+            closeInstructions();
+          }
+        };
+        modal.dataset.bound = '1';
+        document.addEventListener('keydown', keyHandler, { once: true });
+      } catch (_) {}
+    }
+
+    function closeInstructions() {
+      const modal = document.getElementById('instructionsModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    // Ensure it shows every time the page is opened
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', openInstructions);
+    } else {
+      openInstructions();
+    }
+  </script>
   <script src="info-modal.js"></script>
 </body>
 </html>
-
 
 
