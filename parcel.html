@@ -717,6 +717,16 @@
                 </span>
               </label>
             </div>
+            <!-- New Lazada Option -->
+            <div class="rider-option">
+              <label style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">
+                <span><strong>Lazada</strong><br>Available</span>
+                <span>
+                  <input type="checkbox" class="rider-check" data-rider="Lazada" />
+                  <input type="number" class="rider-count" min="1" value="1" style="width:70px; margin-left:6px;" disabled />
+                </span>
+              </label>
+            </div>
           </div>
           <div class="error-message" id="riderError">Please select at least one option and set quantity</div>
         </div>
@@ -735,36 +745,32 @@
           <div class="error-message" id="quantityError">Please enter a valid quantity</div>
         </div>
         
+        <!-- Payment Method (new standalone section) -->
+        <div class="form-group">
+          <label for="paymentMethod">Payment Method to the Rider <span class="required">*</span></label>
+          <select id="paymentMethod" required>
+            <option value="">Select payment method</option>
+            <option value="Cash">Cash</option>
+            <option value="GCash">GCash</option>
+          </select>
+          <div class="error-message" id="paymentMethodError">Please select a payment method to the rider</div>
+        </div>
+        
         <!-- Payment Status -->
         <div class="form-group">
-          <label for="paymentStatus">Payment Status <span class="required">*</span></label>
+          <label for="paymentStatus">Payment Status of the Parcel <span class="required">*</span></label>
           <select id="paymentStatus" required>
             <option value="">Select payment status</option>
             <option value="Paid">Already Paid</option>
             <option value="Not Yet Paid">Not Yet Paid</option>
           </select>
-          <div class="error-message" id="paymentError">Please select payment status</div>
+          <div class="error-message" id="paymentError">Please select payment status of the parcel</div>
           
           <div class="payment-cost-group" id="paymentCostGroup">
             <label for="paymentCost">How much to collect? <span class="required">*</span></label>
             <input type="number" id="paymentCost" placeholder="Enter amount (e.g., 250.00)" step="0.01" min="0">
             <div style="font-size: 12px; color: #666; margin-top: 5px;">
               Amount the rider needs to collect from recipient
-            </div>
-            
-            <!-- Add payment method options -->
-            <div style="margin-top: 10px;">
-              <label>Payment Method <span class="required">*</span></label>
-              <div style="display: flex; gap: 20px; margin-top: 8px;">
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                  <input type="radio" name="paymentMethod" value="Cash" checked style="width: auto; margin-right: 8px;">
-                  Cash
-                </label>
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                  <input type="radio" name="paymentMethod" value="GCash" style="width: auto; margin-right: 8px;">
-                  GCash
-                </label>
-              </div>
             </div>
             
             <div class="error-message" id="paymentCostError">Please enter the payment amount</div>
@@ -1096,10 +1102,17 @@
         isValid = false;
       }
       
+      // Validate payment method
+      const paymentMethod = document.getElementById('paymentMethod').value;
+      if (!paymentMethod) {
+        showError('paymentMethod', 'paymentMethodError', 'Please select a payment method to the rider');
+        isValid = false;
+      }
+      
       // Validate payment status
       const paymentStatus = document.getElementById('paymentStatus').value;
       if (!paymentStatus) {
-        showError('paymentStatus', 'paymentError', 'Please select payment status');
+        showError('paymentStatus', 'paymentError', 'Please select payment status of the parcel');
         isValid = false;
       }
       
@@ -1143,10 +1156,9 @@
         customerPhone: document.getElementById('customerPhone').value.trim(),
         riderSelections: Object.assign({}, riderSelections),
         quantity: parseInt(document.getElementById('quantity').value),
+        paymentMethod: document.getElementById('paymentMethod').value, // Get standalone payment method
         paymentStatus: document.getElementById('paymentStatus').value,
         paymentCost: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? parseFloat(document.getElementById('paymentCost').value) : 0,
-        paymentMethod: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? 
-                       document.querySelector('input[name="paymentMethod"]:checked').value : '',
         deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
         notes: document.getElementById('notes').value.trim()
       };
@@ -1173,10 +1185,9 @@
         riderSelections: selectedNames.map(name => ({ name, count: riderSelections[name] })),
         quantity: parseInt(document.getElementById('quantity').value),
         paymentStatus: document.getElementById('paymentStatus').value,
+        paymentMethod: document.getElementById('paymentMethod').value, // Pass standalone payment method
         paymentCost: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? 
                      parseFloat(document.getElementById('paymentCost').value) : 0,
-        paymentMethod: document.getElementById('paymentStatus').value === 'Not Yet Paid' ? 
-                     document.querySelector('input[name="paymentMethod"]:checked').value : '',
         deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
         notes: document.getElementById('notes').value.trim(),
         timestamp: new Date().toISOString()
@@ -1246,8 +1257,9 @@
           <div><strong>Phone:</strong> ${details.customerPhone}</div>
           <div><strong>Rider(s):</strong> ${Object.entries(details.riderSelections).map(([k,v])=>`${k} (${v})`).join(', ')}</div>
           <div><strong>Quantity:</strong> ${details.quantity}</div>
-          <div><strong>Payment:</strong> ${details.paymentStatus}${details.paymentStatus==='Not Yet Paid'?
-            ` (₱${details.paymentCost} - ${details.paymentMethod || 'Cash'})`:''}</div>
+          <div><strong>Payment Status:</strong> ${details.paymentStatus}${details.paymentStatus==='Not Yet Paid'?
+            ` (₱${details.paymentCost})`:''}</div>
+          <div><strong>Payment Method:</strong> ${details.paymentMethod || 'Cash'}</div>
           <div><strong>Delivery:</strong> ${details.deliveryLocation}</div>
           ${details.notes ? `<div><strong>Notes:</strong> ${details.notes}</div>` : ''}
         </div>
