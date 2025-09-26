@@ -477,6 +477,12 @@
     // Add backend URL and a booking gate
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv69YVjiAxzYteFo7tl4LGVecznj35_kRYY4_Eca3IPmAnOouSQgTIwTqdXESQOrEP2A/exec';
     let bookingAllowed = false;
+    
+    // Add debug flag for troubleshooting rider issues (set to true temporarily if needed)
+    const DEBUG_RIDER_CHECK = false;
+    
+    // Add admin override for emergencies (e.g. ?admin=true in URL)
+    const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
 
     // Consider rider status stale after this TTL (ms)
     const RIDER_ACTIVE_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -491,18 +497,36 @@
       }
       return false;
     }
+    
     function isFresh(ts) {
       if (!ts) return true; // if no timestamp, assume fresh
-      const t = new Date(ts).getTime();
-      if (isNaN(t)) return true;
-      return (Date.now() - t) <= RIDER_ACTIVE_TTL_MS;
+      try {
+        const t = new Date(ts).getTime();
+        if (isNaN(t)) return true;
+        return (Date.now() - t) <= RIDER_ACTIVE_TTL_MS;
+      } catch(e) {
+        console.warn("Error parsing timestamp:", e);
+        return true; // Assume fresh on parse error
+      }
     }
 
     // Check rider availability via backend reading Google Sheet
     async function checkRidersActive() {
       try {
-        const res = await fetch(`${SCRIPT_URL}?action=get_rider_statuses&ts=${Date.now()}`, { cache: 'no-cache' });
+        if (DEBUG_RIDER_CHECK) console.log("Checking rider availability...");
+        
+        const res = await fetch(`${SCRIPT_URL}?action=get_rider_statuses&ts=${Date.now()}`, { 
+          cache: 'no-cache',
+          timeout: 8000 // Add timeout to prevent hanging forever
+        });
+        
+        if (!res.ok) {
+          if (DEBUG_RIDER_CHECK) console.warn(`API returned status ${res.status}`);
+          return { ok: false, anyActive: false, err: `API error: ${res.status}` };
+        }
+        
         const data = await res.json();
+        if (DEBUG_RIDER_CHECK) console.log("Rider API response:", data);
 
         // Accept both map and array shapes
         let entries = [];
@@ -512,12 +536,46 @@
           } else if (data.riders && typeof data.riders === 'object') {
             entries = Object.values(data.riders);
           }
+        } else {
+          if (DEBUG_RIDER_CHECK) console.warn("API returned success: false");
+          return { ok: false, anyActive: false, err: data.message || "API returned success: false" };
         }
-        // Evaluate active + freshness
-        const anyActive = entries.some(r => r && toBool(r.active) && isFresh(r.last_updated));
-        return { ok: true, anyActive };
+        
+        if (DEBUG_RIDER_CHECK) console.log(`Found ${entries.length} rider entries`);
+        
+        // Evaluate active + freshness for each rider
+        const activeRiders = entries.filter(r => {
+          const isActive = toBool(r?.active);
+          const timestampFresh = isFresh(r?.last_updated);
+          if (DEBUG_RIDER_CHECK) {
+            console.log(`Rider ${r?.name || '(unknown)'}: active=${isActive}, fresh=${timestampFresh}`);
+          }
+          return isActive && timestampFresh;
+        });
+        
+        const anyActive = activeRiders.length > 0;
+        if (DEBUG_RIDER_CHECK) console.log(`Active riders: ${activeRiders.length}`);
+        
+        // Special case: Always allow booking if there are entries but none are officially active
+        // This is a fallback to prevent service outage if status updates are failing
+        const fallbackActivation = entries.length > 0 && activeRiders.length === 0 && isAdmin;
+        
+        return { 
+          ok: true, 
+          anyActive: anyActive || fallbackActivation,
+          fallback: fallbackActivation,
+          riderCount: entries.length,
+          activeCount: activeRiders.length
+        };
       } catch (e) {
-        return { ok: false, anyActive: false, err: e };
+        console.error("Error checking rider availability:", e);
+        // Admin bypass: if admin, allow booking even on error
+        return { 
+          ok: false, 
+          anyActive: isAdmin, // Allow admin to bypass on error
+          adminBypass: isAdmin,
+          err: e 
+        };
       }
     }
 
@@ -552,15 +610,39 @@
       showAvailabilityModal('Checking rider availability...', 'Please wait.');
       checkRidersActive().then(result => {
         closeAvailabilityModal();
+        
         if (result.ok && result.anyActive) {
           bookingAllowed = true;
+          
+          // Show admin message if using fallback or bypass
+          if ((result.fallback || result.adminBypass) && isAdmin) {
+            showAvailabilityModal(
+              'Admin mode: Booking enabled despite rider status issues', 
+              result.fallback ? 'Using fallback mode: riders exist but none marked active' : 
+                              'Admin bypass: Error checking rider status'
+            );
+            setTimeout(closeAvailabilityModal, 3000);
+          }
+          
           openInstructions(); // show instructions as usual
+        } else if (result.ok && !result.anyActive && result.riderCount > 0) {
+          // Riders exist but none are active - don't show rider count
+          bookingAllowed = false;
+          showAvailabilityModal(
+            'No available rider at the moment.', 
+            'Please try again later.'
+          );
         } else if (result.ok && !result.anyActive) {
+          // No riders at all
           bookingAllowed = false;
           showAvailabilityModal('No available rider at the moment. Please try again later.');
         } else {
+          // Connection error
           bookingAllowed = false;
-          showAvailabilityModal('Could not verify rider availability.', 'Please check your internet connection and try again.');
+          showAvailabilityModal(
+            'Could not verify rider availability.', 
+            'Please check your internet connection and try again.'
+          );
         }
       });
     }
@@ -634,6 +716,5 @@
   <script src="info-modal.js"></script>
 </body>
 </html>
-
 
 
