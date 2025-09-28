@@ -510,72 +510,32 @@
       }
     }
 
-    // Check rider availability via backend reading Google Sheet
+    // Replace availability check with a strict "Active === '1'" evaluation
     async function checkRidersActive() {
       try {
-        if (DEBUG_RIDER_CHECK) console.log("Checking rider availability...");
-        
-        const res = await fetch(`${SCRIPT_URL}?action=get_rider_statuses&ts=${Date.now()}`, { 
-          cache: 'no-cache',
-          timeout: 8000 // Add timeout to prevent hanging forever
-        });
-        
+        const res = await fetch(`${SCRIPT_URL}?action=get_rider_statuses&ts=${Date.now()}`, { cache: 'no-cache' });
         if (!res.ok) {
-          if (DEBUG_RIDER_CHECK) console.warn(`API returned status ${res.status}`);
           return { ok: false, anyActive: false, err: `API error: ${res.status}` };
         }
-        
         const data = await res.json();
-        if (DEBUG_RIDER_CHECK) console.log("Rider API response:", data);
 
         // Accept both map and array shapes
         let entries = [];
         if (data && data.success) {
-          if (Array.isArray(data.riders)) {
-            entries = data.riders;
-          } else if (data.riders && typeof data.riders === 'object') {
-            entries = Object.values(data.riders);
-          }
+          entries = Array.isArray(data.riders)
+            ? data.riders
+            : (data.riders && typeof data.riders === 'object' ? Object.values(data.riders) : []);
         } else {
-          if (DEBUG_RIDER_CHECK) console.warn("API returned success: false");
-          return { ok: false, anyActive: false, err: data.message || "API returned success: false" };
+          return { ok: false, anyActive: false, err: data && data.message ? data.message : 'API returned success: false' };
         }
-        
-        if (DEBUG_RIDER_CHECK) console.log(`Found ${entries.length} rider entries`);
-        
-        // Evaluate active + freshness for each rider
-        const activeRiders = entries.filter(r => {
-          const isActive = toBool(r?.active);
-          const timestampFresh = isFresh(r?.last_updated);
-          if (DEBUG_RIDER_CHECK) {
-            console.log(`Rider ${r?.name || '(unknown)'}: active=${isActive}, fresh=${timestampFresh}`);
-          }
-          return isActive && timestampFresh;
-        });
-        
-        const anyActive = activeRiders.length > 0;
-        if (DEBUG_RIDER_CHECK) console.log(`Active riders: ${activeRiders.length}`);
-        
-        // Special case: Always allow booking if there are entries but none are officially active
-        // This is a fallback to prevent service outage if status updates are failing
-        const fallbackActivation = entries.length > 0 && activeRiders.length === 0 && isAdmin;
-        
-        return { 
-          ok: true, 
-          anyActive: anyActive || fallbackActivation,
-          fallback: fallbackActivation,
-          riderCount: entries.length,
-          activeCount: activeRiders.length
-        };
+
+        // Strictly treat active as "1" (from Google Sheet), anything else is inactive
+        const anyActive = entries.some(r => (r && (r.active === true || r.active === '1')));
+
+        return { ok: true, anyActive, riderCount: entries.length };
       } catch (e) {
-        console.error("Error checking rider availability:", e);
-        // Admin bypass: if admin, allow booking even on error
-        return { 
-          ok: false, 
-          anyActive: isAdmin, // Allow admin to bypass on error
-          adminBypass: isAdmin,
-          err: e 
-        };
+        console.error('checkRidersActive error:', e);
+        return { ok: false, anyActive: false, err: e };
       }
     }
 
@@ -647,17 +607,41 @@
       });
     }
 
-    function navigateToBooking(service) {
-      // Block booking when no riders are active
-      if (!bookingAllowed) {
+    // New: live watcher – auto-unlocks booking when Active turns on
+    function startAvailabilityWatcher() {
+      try {
+        if (window.__availabilityInterval) clearInterval(window.__availabilityInterval);
+        window.__availabilityInterval = setInterval(async () => {
+          const res = await checkRidersActive();
+          const becameActive = res && res.ok && res.anyActive && !bookingAllowed;
+          bookingAllowed = !!(res && res.ok && res.anyActive);
+
+          // If it just turned active, close any modal and proceed to instructions
+          if (becameActive) {
+            try { closeAvailabilityModal(); } catch (_) {}
+            openInstructions();
+          }
+        }, 3000);
+      } catch (_) {}
+    }
+
+    // Update navigation to always re-check availability right before proceeding
+    async function navigateToBooking(service) {
+      const result = await checkRidersActive();
+      if (result.ok && result.anyActive) {
+        bookingAllowed = true;
+        const card = (window.event && window.event.currentTarget) ? window.event.currentTarget : null;
+        if (card) {
+          card.style.transform = 'scale(0.95)';
+          card.style.transition = 'transform 0.2s ease';
+          setTimeout(() => { window.location.href = `${service}.html`; }, 200);
+        } else {
+          window.location.href = `${service}.html`;
+        }
+      } else {
+        bookingAllowed = false;
         showAvailabilityModal('No available rider at the moment. Please try again later.');
-        return;
       }
-      // Add a smooth transition effect
-      const card = event.currentTarget;
-      card.style.transform = 'scale(0.95)';
-      card.style.transition = 'transform 0.2s ease';
-      setTimeout(() => { window.location.href = `${service}.html`; }, 200);
     }
     
     // Keep existing interactivity
@@ -706,15 +690,16 @@
       if (modal) modal.style.display = 'none';
     }
 
-    // IMPORTANT: Run availability check first; only then possibly show instructions
+    // IMPORTANT: Run availability check first; also start live watcher for instant switch behavior
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', openAvailabilityCheck);
+      document.addEventListener('DOMContentLoaded', () => { openAvailabilityCheck(); startAvailabilityWatcher(); });
     } else {
       openAvailabilityCheck();
+      startAvailabilityWatcher();
     }
   </script>
   <script src="info-modal.js"></script>
 </body>
 </html>
-
+   
 
