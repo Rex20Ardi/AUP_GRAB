@@ -580,8 +580,19 @@
           <div class="error-message" id="basketError">Please enter laundry details</div>
         </div>
 
+        <!-- Payment Method to Rider -->
         <div class="form-group">
-          <label for="paymentStatus">Payment Status <span class="required">*</span></label>
+          <label for="riderPaymentMethod">Payment Method to the Rider <span class="required">*</span></label>
+          <select id="riderPaymentMethod" required>
+            <option value="">Select payment method</option>
+            <option value="Cash">Cash</option>
+            <option value="GCash">GCash</option>
+          </select>
+          <div class="error-message" id="riderPaymentMethodError">Please select payment method to the rider</div>
+        </div>
+
+        <div class="form-group">
+          <label for="paymentStatus">Status of Payment of the Laundry <span class="required">*</span></label>
           <select id="paymentStatus" required>
             <option value="">Select payment status</option>
             <option value="Paid">Already Paid</option>
@@ -726,12 +737,26 @@
         const rawCost = parseFloat(document.getElementById('paymentCost').value);
         const paymentCostVal = paymentStatusVal === 'Not Yet Paid' ? (isNaN(rawCost) ? 0 : rawCost) : 0;
 
+        // Normalize rider payment method and prepare aliases for backend
+        const riderPM = (document.getElementById('riderPaymentMethod').value || '').trim();
+        const riderPMLower = riderPM.toLowerCase();
+        const riderPMUpper = riderPM.toUpperCase();
+
         lastBookingDetails = {
           customerName: document.getElementById('customerName').value.trim(),
           customerPhone: document.getElementById('customerPhone').value.trim(),
           pickupLocation: document.getElementById('pickupLocation').value.trim(),
           deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
           basket: document.getElementById('basket').value.trim(),
+          riderPaymentMethod: riderPM,
+          // Column J mapping helpers (send multiple aliases to match Apps Script expectations)
+          paymentMethod: riderPM,                 // camelCase
+          payment_method: riderPM,                // snake_case
+          paymentMethodToRider: riderPM,          // legacy camel
+          payment_method_to_rider: riderPM,       // legacy snake
+          paid_via: riderPM,                      // common alias
+          payment_method_normalized: riderPMLower,// helper
+          payment_method_upper: riderPMUpper,     // helper
           paymentStatus: paymentStatusVal,
           paymentCost: paymentCostVal,
           notes: document.getElementById('notes').value.trim()
@@ -746,6 +771,14 @@
           pickupLocation: lastBookingDetails.pickupLocation,
           deliveryLocation: lastBookingDetails.deliveryLocation,
           basketName: lastBookingDetails.basket,
+          // Send all common aliases so Google Apps Script can map to Column J (Payment Method)
+          riderPaymentMethod: lastBookingDetails.riderPaymentMethod,
+          paymentMethod: lastBookingDetails.paymentMethod,
+          payment_method: lastBookingDetails.payment_method,
+          paymentMethodToRider: lastBookingDetails.paymentMethodToRider,
+          payment_method_to_rider: lastBookingDetails.payment_method_to_rider,
+          paid_via: lastBookingDetails.paid_via,
+          payment_method_normalized: lastBookingDetails.payment_method_normalized,
           paymentStatus: lastBookingDetails.paymentStatus,
           paymentCost: lastBookingDetails.paymentCost,
           notes: lastBookingDetails.notes,
@@ -803,6 +836,8 @@
       if (!details) return;
       const el = document.getElementById('bookingSummary');
       el.style.display = 'block';
+      // Pick the method from any supported key (no default to Cash)
+      const paymentMethodDisplay = details.riderPaymentMethod || details.paymentMethod || details.payment_method || '';
       el.innerHTML = `
         <div style="background:#f8f9fa; border-radius:10px; padding:14px 18px; border:1px solid #e1e1e1;">
           <div><strong>Name:</strong> ${details.customerName}</div>
@@ -810,6 +845,7 @@
           <div><strong>Pickup:</strong> ${details.pickupLocation}</div>
           <div><strong>Delivery:</strong> ${details.deliveryLocation}</div>
           <div><strong>Laundry:</strong> ${details.basket}</div>
+          <div><strong>Payment Method to Rider:</strong> ${paymentMethodDisplay || '—'}</div>
           <div><strong>Payment:</strong> ${details.paymentStatus}${details.paymentStatus==='Not Yet Paid'?` (₱${details.paymentCost})`:''}</div>
           ${details.notes ? `<div><strong>Notes:</strong> ${details.notes}</div>` : ''}
         </div>
@@ -996,6 +1032,11 @@
         Rider assigned!
       `;
       const initials = (booking.rider_name || '').trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase() || 'R';
+      // Resolve payment method without defaulting to Cash
+      const resolvedPaymentMethod =
+        (lastBookingDetails && (lastBookingDetails.riderPaymentMethod || lastBookingDetails.paymentMethod || lastBookingDetails.payment_method)) ||
+        booking.payment_method || booking.paymentMethod || booking.riderPaymentMethod || '';
+
       document.getElementById('riderInfo').innerHTML = `
         <div class="rider-info">
           <div class="rider-grid">
@@ -1024,6 +1065,14 @@
                   <circle cx="12" cy="10" r="3"/>
                 </svg>
                 <span id="riderStatusText">Status: On the way to pickup laundry</span>
+              </div>
+              <!-- NEW: display the payment method actually chosen -->
+              <div class="rider-details">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; margin-right:8px;">
+                  <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+                  <line x1="1" y1="10" x2="23" y2="10"/>
+                </svg>
+                Payment Method: <strong>${resolvedPaymentMethod || '—'}</strong>
               </div>
               <div class="progress">
                 <div class="progress-track"><div class="progress-fill" id="riderProgressFill" style="width:35%"></div></div>
@@ -1244,6 +1293,13 @@
       const basket = document.getElementById('basket').value.trim();
       if (!basket) {
         showError('basket', 'basketError', 'Please enter laundry details');
+        isValid = false;
+      }
+
+      // Validate rider payment method
+      const riderPaymentMethod = document.getElementById('riderPaymentMethod').value;
+      if (!riderPaymentMethod) {
+        showError('riderPaymentMethod', 'riderPaymentMethodError', 'Please select payment method to the rider');
         isValid = false;
       }
 
