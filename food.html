@@ -674,9 +674,20 @@
           <div class="error-message" id="quantityError">Please enter a valid quantity</div>
         </div>
         
+        <!-- Payment Method to Rider -->
+        <div class="form-group">
+          <label for="riderPaymentMethod">Payment Method to the Rider <span class="required">*</span></label>
+          <select id="riderPaymentMethod" required>
+            <option value="">Select payment method</option>
+            <option value="Cash">Cash</option>
+            <option value="GCash">GCash</option>
+          </select>
+          <div class="error-message" id="riderPaymentMethodError">Please select payment method to the rider</div>
+        </div>
+
         <!-- Payment Status -->
         <div class="form-group">
-          <label for="paymentStatus">Status of Payment <span class="required">*</span></label>
+          <label for="paymentStatus">Status of Payment of the Food <span class="required">*</span></label>
           <select id="paymentStatus" required>
             <option value="">Select payment status</option>
             <option value="Paid">Already Paid</option>
@@ -848,6 +859,10 @@
           pickupLocation: document.getElementById('pickupLocation').value.trim(),
           itemIdentity: document.getElementById('itemIdentity').value.trim(),
           quantity: parseInt(document.getElementById('quantity').value),
+          riderPaymentMethod: document.getElementById('riderPaymentMethod').value,
+          // also keep a direct paymentMethod copy (parcel logic)
+          paymentMethod: document.getElementById('riderPaymentMethod').value,
+          payment_method: document.getElementById('riderPaymentMethod').value,
           paymentStatus: paymentStatusVal,
           paymentCost: paymentCostVal,
           deliveryLocation: document.getElementById('deliveryLocation').value.trim(),
@@ -863,13 +878,16 @@
           pickupLocation: lastBookingDetails.pickupLocation,
           itemIdentity: lastBookingDetails.itemIdentity,
           quantity: lastBookingDetails.quantity,
+          riderPaymentMethod: lastBookingDetails.riderPaymentMethod,
+          // parcel-like keys so backend writes Column J correctly
+          paymentMethod: lastBookingDetails.paymentMethod,
+          payment_method: lastBookingDetails.payment_method,
           paymentStatus: lastBookingDetails.paymentStatus,
           paymentCost: lastBookingDetails.paymentCost,
           deliveryLocation: lastBookingDetails.deliveryLocation,
           notes: lastBookingDetails.notes,
           timestamp: new Date().toISOString()
         };
-
         submitBooking(formData);
       });
 
@@ -997,6 +1015,7 @@
           <div><strong>Pickup:</strong> ${details.pickupLocation}</div>
           <div><strong>Items:</strong> ${details.itemIdentity}</div>
           <div><strong>Quantity:</strong> ${details.quantity}</div>
+          <div><strong>Payment Method to Rider:</strong> ${details.riderPaymentMethod}</div>
           <div><strong>Payment:</strong> ${details.paymentStatus}${details.paymentStatus==='Not Yet Paid'?` (₱${details.paymentCost})`:''}</div>
           <div><strong>Delivery:</strong> ${details.deliveryLocation}</div>
           ${details.notes ? `<div><strong>Notes:</strong> ${details.notes}</div>` : ''}
@@ -1508,6 +1527,13 @@
 
       const deliveryLocation = document.getElementById('deliveryLocation').value.trim();
       if (!deliveryLocation) { showError('deliveryLocation', 'deliveryError', 'Please enter delivery location'); isValid = false; }
+
+      // rider payment method
+      const riderPaymentMethod = document.getElementById('riderPaymentMethod').value;
+      if (!riderPaymentMethod) {
+        showError('riderPaymentMethod', 'riderPaymentMethodError', 'Please select payment method to the rider');
+        isValid = false;
+      }
 
       return isValid;
     }
